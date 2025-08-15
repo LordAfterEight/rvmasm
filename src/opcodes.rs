@@ -59,6 +59,14 @@ pub const JUMP_IFEQ: u16 = 0x00C2;
 /// OpCodes: Jumps to the following address if the eq_flag is false
 pub const JUMP_INEQ: u16 = 0x00C3;
 
+// --- OpCodes: Branch if equal ---
+/// OpCodes: Jumps to the following address as subroutine if the eq_flag is true. Conditional jusr
+pub const BRAN_IFEQ: u16 = 0x00C4;
+
+// --- OpCodes: Branch if not equal ---
+/// OpCodes: Jumps to the following address as subrutine if the eq_flag is false. COnditional jusr
+pub const BRAN_INEQ: u16 = 0x00C5;
+
 // --- OpCodes: Increment register value ---
 /// OpCodes: Increases the value in the register specified in the following address by the value
 ///          specified in the second address after the opcode
