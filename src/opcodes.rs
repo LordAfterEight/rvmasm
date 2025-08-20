@@ -87,6 +87,12 @@ pub const MUL_REG_V: u16 = 0x00D4;
 ///          specified in the second address after the opcode
 pub const DIV_REG_V: u16 = 0x00D5;
 
+// --- OpCodes: Await input ---
+/// OpCodes: Makes the CPU await input. Every key pressed is pushed to the input buffer until
+///          Return is pressed. The input buffer will then be processed and only then will the
+///          program resume execution.
+pub const AWAIT_INP: u16 = 0x00F0;
+
 // NOTE: GPU OPCODES
 // TODO:
 

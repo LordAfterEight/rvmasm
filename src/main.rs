@@ -3,6 +3,8 @@ use std::char;
 use std::io::Write;
 use std::{fs::OpenOptions, io::Read};
 
+use crate::opcodes::AWAIT_INP;
+
 const ROM_SIZE: usize = 65536; // 64 KiB
 
 // TODO:
@@ -95,9 +97,11 @@ fn main() {
     let mut mode = Mode::Normal;
     let mut fs_ptr = 0;
     let mut routine_ptr = 0;
+    let mut var_ptr = 0;
     let mut file_systems = Vec::<fs::FileSystem>::new();
     let mut routines = Vec::<Routine>::new();
     let mut routine_addresses = Vec::<u16>::new();
+    let mut variables = Vec::<Variable>::new();
 
 
     for line in code_string.lines() {
@@ -215,11 +219,11 @@ fn main() {
                                 let register = parse_regs(&instruction, code_line, 2);
 
                                 match register {
-                                    0x41 => out_word = 0xF0AA,
-                                    0x42 => out_word = 0xF0BB,
-                                    0x43 => out_word = 0xF0CC,
-                                    0x44 => out_word = 0xF0DD,
-                                    _ => out_word = 0xF00D
+                                    0x41 => out_word = 0xE0AA,
+                                    0x42 => out_word = 0xE0BB,
+                                    0x43 => out_word = 0xE0CC,
+                                    0x44 => out_word = 0xE0DD,
+                                    _ => out_word = 0xE00D
                                 }
 
                                 routines[routine_ptr].instructions.push(opcodes::LOAD_GREG);
@@ -231,7 +235,34 @@ fn main() {
                                 routines[routine_ptr].instructions.push(0x60);
                                 routines[routine_ptr].instructions.push(opcodes::STOR_GREG);
                                 gpu_ptr += 1;
-                            }
+                            },
+                            "var" => {
+                                match instruction.len() {
+                                    1 => panic("Missing variable name", &instruction, code_line, 0),
+                                    2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
+                                    _ => {}
+                                }
+                                routines[routine_ptr].instructions.push(opcodes::LOAD_GREG);
+                                routines[routine_ptr].instructions.push(opcodes::GPU_DRAW_TEXT);
+                                routines[routine_ptr].instructions.push(opcodes::STOR_GREG);
+                                gpu_ptr += 1;
+
+                                let var_name = instruction[2];
+                                for variable in variables.iter() {
+                                    if variable.name == var_name {
+                                        let out_word = ((0xF << 12) as u16) | (variable.address as u16);
+                                        println!("  -> Drawing variable \"{}\" @ {:#06X}", variable.name.cyan(), out_word);
+                                        routines[routine_ptr].instructions.push(opcodes::LOAD_GREG);
+                                        routines[routine_ptr].instructions.push(out_word);
+                                        routines[routine_ptr].instructions.push(opcodes::STOR_GREG);
+                                        gpu_ptr += 1;
+                                        routines[routine_ptr].instructions.push(opcodes::LOAD_GREG);
+                                        routines[routine_ptr].instructions.push(0x60);
+                                        routines[routine_ptr].instructions.push(opcodes::STOR_GREG);
+                                        gpu_ptr += 1;
+                                    }
+                                }
+                            },
                             _ => panic("", &instruction, code_line, 1)
                         }
                     }
@@ -361,6 +392,9 @@ fn main() {
                         if val_a == val_b {
                         }
                     }
+                    "inpt" => {
+                        routines[routine_ptr].instructions.push(AWAIT_INP);
+                    }
                     "rtor" => {
                         routines[routine_ptr].instructions.push(opcodes::RET_TO_OR);
                     }
@@ -373,6 +407,27 @@ fn main() {
                             routine_ptr += 1;
                         }
                         continue;
+                    }
+                    "var" => {
+                        match instruction.len() {
+                            1 => panic("Missing variable name", &instruction, code_line, 0),
+                            2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
+                            3 => panic("Expected argument of type: num/lit/hex. Maybe the type annotation is missing?", &instruction, code_line, 2),
+                            _ => {}
+                        }
+                        let mut variable = Variable::new(instruction[1].to_string(), var_ptr);
+
+                        match instruction[2] {
+                            "=" => {
+                                let value = parse_hex_lit_num(&instruction, code_line, 3, 0);
+                                variable.value = value;
+                                memory[var_ptr as usize] = value;
+                                println!("  -> Allocating variable \"{}\" with value {:#06X} @ {:#06X}", variable.name.cyan(), value, var_ptr);
+                            }
+                            _ => panic("Expected \"=\"", &instruction, code_line, 2)
+                        }
+                        variables.push(variable);
+                        var_ptr += 1;
                     }
                     "   " | "" | "//" => code_line += 1,
                     _ => panic("\nMissing indentation",&instruction, code_line, 0)
@@ -529,6 +584,13 @@ pub struct Routine {
     pub length: u16
 }
 
+#[derive(Clone)]
+pub struct Variable {
+    pub name: String,
+    pub value: u16,
+    pub address: u16,
+}
+
 impl Routine {
     pub fn new(name: String, ptr: u16) -> Self {
         Self {
@@ -537,6 +599,16 @@ impl Routine {
             offset_ptr: Default::default(),
             instructions: Vec::new(),
             length: Default::default()
+        }
+    }
+}
+
+impl Variable {
+    pub fn new(name: String, address: u16) -> Self {
+        Self {
+            name,
+            value: 0,
+            address,
         }
     }
 }
