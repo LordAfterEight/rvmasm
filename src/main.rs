@@ -28,7 +28,7 @@ fn main() {
 
     println!(
         "Assembling: {}",
-        format!("{}/{}", env!("CARGO_MANIFEST_DIR"), in_path)
+        format!("{}/{}", std::env::current_dir().unwrap().display(), in_path)
     );
 
     let mut code = OpenOptions::new()
@@ -251,7 +251,6 @@ fn main() {
                                 for variable in variables.iter() {
                                     if variable.name == var_name {
                                         let out_word = ((0xF << 12) as u16) | (variable.address as u16);
-                                        println!("  -> Drawing variable \"{}\" @ {:#06X}", variable.name.cyan(), out_word);
                                         routines[routine_ptr].instructions.push(opcodes::LOAD_GREG);
                                         routines[routine_ptr].instructions.push(out_word);
                                         routines[routine_ptr].instructions.push(opcodes::STOR_GREG);
