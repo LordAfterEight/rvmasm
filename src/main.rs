@@ -348,8 +348,23 @@ fn main() {
                     }
                     "    radd" => {
                         let register = parse_regs(&instruction, code_line, 1);
-                        let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
-                        if value > 61439 {
+                        let value = match instruction[2] {
+                            "reg" => {
+                                let out_word;
+                                let register = parse_regs(&instruction, code_line, 3);
+
+                                match register {
+                                    0x41 => out_word = 0xE0AA,
+                                    0x42 => out_word = 0xE0BB,
+                                    0x43 => out_word = 0xE0CC,
+                                    0x44 => out_word = 0xE0DD,
+                                    _ => out_word = 0xE00D
+                                }
+                                out_word
+                            },
+                            _ => parse_hex_lit_num(&instruction, code_line, 2, 0)
+                        };
+                        if (value > 61439) && (instruction[2] != "reg") {
                             panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
                         };
                         routines[routine_ptr].instructions.push(opcodes::INC_REG_V);
@@ -358,8 +373,23 @@ fn main() {
                     }
                     "    rsub" => {
                         let register = parse_regs(&instruction, code_line, 1);
-                        let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
-                        if value > 61439 {
+                        let value = match instruction[2] {
+                            "reg" => {
+                                let out_word;
+                                let register = parse_regs(&instruction, code_line, 3);
+
+                                match register {
+                                    0x41 => out_word = 0xE0AA,
+                                    0x42 => out_word = 0xE0BB,
+                                    0x43 => out_word = 0xE0CC,
+                                    0x44 => out_word = 0xE0DD,
+                                    _ => out_word = 0xE00D
+                                }
+                                out_word
+                            },
+                            _ => parse_hex_lit_num(&instruction, code_line, 2, 0)
+                        };
+                        if (value > 61439) && (instruction[2] != "reg") {
                             panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
                         };
                         routines[routine_ptr].instructions.push(opcodes::DEC_REG_V);
@@ -368,8 +398,23 @@ fn main() {
                     }
                     "    rmul" => {
                         let register = parse_regs(&instruction, code_line, 1);
-                        let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
-                        if value > 61439 {
+                        let value = match instruction[2] {
+                            "reg" => {
+                                let out_word;
+                                let register = parse_regs(&instruction, code_line, 3);
+
+                                match register {
+                                    0x41 => out_word = 0xE0AA,
+                                    0x42 => out_word = 0xE0BB,
+                                    0x43 => out_word = 0xE0CC,
+                                    0x44 => out_word = 0xE0DD,
+                                    _ => out_word = 0xE00D
+                                }
+                                out_word
+                            },
+                            _ => parse_hex_lit_num(&instruction, code_line, 2, 0)
+                        };
+                        if (value > 61439) && (instruction[2] != "reg") {
                             panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
                         };
                         routines[routine_ptr].instructions.push(opcodes::MUL_REG_V);
@@ -378,8 +423,23 @@ fn main() {
                     }
                     "    rdiv" => {
                         let register = parse_regs(&instruction, code_line, 1);
-                        let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
-                        if value > 61439 {
+                        let value = match instruction[2] {
+                            "reg" => {
+                                let out_word;
+                                let register = parse_regs(&instruction, code_line, 3);
+
+                                match register {
+                                    0x41 => out_word = 0xE0AA,
+                                    0x42 => out_word = 0xE0BB,
+                                    0x43 => out_word = 0xE0CC,
+                                    0x44 => out_word = 0xE0DD,
+                                    _ => out_word = 0xE00D
+                                }
+                                out_word
+                            },
+                            _ => parse_hex_lit_num(&instruction, code_line, 2, 0)
+                        };
+                        if (value > 61439) && (instruction[2] != "reg") {
                             panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
                         };
                         routines[routine_ptr].instructions.push(opcodes::DIV_REG_V);
