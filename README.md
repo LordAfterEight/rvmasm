@@ -365,7 +365,7 @@ draw var value    # Prints the value of the variable "value"
 <details open>
   <Summary> Explanation </Summary>
 
-```ctrl`` is used to control the GPU and the CPU. Examples:
+`ctrl` is used to control the GPU and the CPU. Examples:
 ```ruby
 ctrl cpu halt     # Stops the CPU and execution of the program
 
