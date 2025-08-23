@@ -370,7 +370,7 @@ fn main() {
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
                     }
-                    "jusr" => {
+                    "bran" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::JMP_TO_SR);
