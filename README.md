@@ -77,7 +77,7 @@ var addr = lit 0xBEEF
 <details open>
   <Summary> Explanation </Summary>
   
-```lit``` will return the value as is (thus "lit" for "literal"), which is why the value must not be longer than four characters and it must not contain any special symbols; only ```0-9```and ```A-F``` are allowed. Especially useful when   you need to specify addresses. Examples:
+```lit``` will use the given value as is (thus "lit" for "literal") without any conversion, which is why the value must not be longer than four characters and it must not contain any special symbols; only ```0-9```and ```A-F``` are allowed. Especially useful when   you need to specify addresses. Examples:
 ```ruby
 lit 0x0FA3
 lit 0FA3
