@@ -19,7 +19,7 @@ RvmASM is an Assembly-ish language for my 16-bit virtual machine Rusty-VM. I mad
 |-------------|--------------------------|-------------|
 | [lit](#lit) | [routine:](#routine)     | [var](#var) |
 | [hex](#hex) | [end](#end)              | [col](#col) |
-| [num](#num) |                          |             |
+| [num](#num) |                          | [reg](#reg) |
 | [str](#str) |                          |             |
 
 ### 3. [Instructions](#Instructions)
@@ -79,7 +79,7 @@ var addr = lit 0xBEEF
 <details open>
   <Summary> Explanation </Summary>
   
-```lit``` will use the given value as is (thus "lit" for "literal") without any conversion, which is why the value must not be longer than four characters (without `0x`) and it must not contain any special symbols; only ```0-9```and ```A-F``` are allowed. Especially useful when   you need to specify addresses. Examples:
+```lit``` will use the given value as is (thus "lit" for "literal") without any conversion, which is why the value must not be longer than four characters (without the prefix) and it must not contain any special symbols; only ```0-9```and ```A-F``` are allowed. Especially useful when   you need to specify addresses. Examples:
 ```ruby
 lit 0x0FA3
 lit 0FA3
@@ -92,7 +92,7 @@ lit FA3
 <details open>
   <Summary> Explanation </Summary>
   
-```hex``` Interprets the following value as **character**, converting it to its numerical ASCII representation. A `hex` must only be a **single** characterExamples:
+```hex``` Interprets the following value as **character**, converting it to its numerical ASCII representation. A `hex` must only be a **single** character. Examples:
 ```ruby
 load A hex U        # "U" will be converted to 0x0055 and loaded into Register A
 load A lit 0x0055   # Same value
@@ -106,7 +106,7 @@ load A lit 0x0055   # Same value
 ```num``` enables you to use any decimal number from 0 to 61439. Examples:
 ```ruby
 load A num 7        # Number 7 will be loaded into the A register. Would be the same as "lit 0x0007"
-load X num 61439    # Number 61439 will be loaded into the X register. Would be the same as "lit 0xEFFF"
+load B num 61439    # Number 61439 will be loaded into the B register. Would be the same as "lit 0xEFFF"
 ```
 </details>
 
@@ -127,6 +127,16 @@ draw str Hello^World!  # Will print "Hello World!" to the screen
 ```col``` is currently only used for ```draw```ing. It is placed behind a ```str``` to color it. You can also just not use it, then the assembler will default to making the ```str``` white. Example:
 ```ruby
 draw str Hello^World! col red  # Will print a red "Hello World!" to the screen
+```
+</details>
+
+### ```reg``` <a name="reg"></a>
+<details open>
+  <Summary> Explanation </Summary>
+  
+```reg``` is used to tell some instructions to get the value from the specififed register. It is needed for instructions that aren't directly linked to the registers, e.g. the `comp` instruction. There are four available registers: `A`, `B`, `C` and `D`. Example:
+```ruby
+comp reg A num 8   # Compares the register A to the number 8, setting the eq_flag accordingly
 ```
 </details>
 
@@ -173,8 +183,8 @@ Now it gets interesting. Instructions are key to make the machine do things, so 
 ```load``` is used to load a value into a register. Which register is specified by the first argument, the value by the second. Examples:
 ```ruby
 load A num 7
-load X hex H
-load Y lit 0x06AF
+load B hex H
+load C lit 0x06AF
 ```
 </details>
 
@@ -303,7 +313,7 @@ setv num 22266 lit 0x0055   # You can also use a number or hex values directly
 ```ruby
 comp lit 0x4000 num 8    # Compares the hexadecimal value 0x4000 with the decimal value 8
 comp reg A num 8         # Compares the content of register A with the decimal value 8
-comp reg A reg X         # Compares two registers
+comp reg A reg B         # Compares two registers
 ```
 </details>
 
@@ -314,7 +324,7 @@ comp reg A reg X         # Compares two registers
 ```radd``` is used to increment a register's value by the following value. Examples:
 ```ruby
 radd A num 8      # Increases the value in the A register by 8
-radd X hex 12     # Increases the value in the X register by 0x12 (18 in decimal)
+radd B hex 12     # Increases the value in the B register by 0x12 (18 in decimal)
 ```
 </details>
 
@@ -325,7 +335,7 @@ radd X hex 12     # Increases the value in the X register by 0x12 (18 in decimal
 ```rsub``` is used to decrement a register's value by the following value. Examples:
 ```ruby
 rsub A num 8      # Decreases the value in the A register by 8
-rsub X hex 12     # Decreases the value in the X register by 0x12 (18 in decimal)
+rsub B hex 12     # Decreases the value in the B register by 0x12 (18 in decimal)
 ```
 </details>
 
@@ -336,7 +346,7 @@ rsub X hex 12     # Decreases the value in the X register by 0x12 (18 in decimal
 ```rmul``` is used to multiply a register's value by the following value. Examples:
 ```ruby
 rmul A num 8      # Multiplies the value in the A register by 8
-rmul X hex 12     # Multiplies the value in the X register by 0x12 (18 in decimal)
+rmul B hex 12     # Multiplies the value in the B register by 0x12 (18 in decimal)
 ```
 </details>
 
@@ -347,7 +357,7 @@ rmul X hex 12     # Multiplies the value in the X register by 0x12 (18 in decima
 ```rdiv``` is used to divide a register's value by the following value. Examples:
 ```ruby
 rdiv A num 8      # Divides the value in the A register by 8
-rdiv X hex 12     # Divides the value in the X register by 0x12 (18 in decimal)
+rdiv B hex 12     # Divides the value in the B register by 0x12 (18 in decimal)
 ```
 </details>
 
