@@ -246,7 +246,7 @@ rtor    # This doesn't take any arguments
 <details open>
   <Summary> Explanation </Summary>
    
-```brie``` is used to conditionally jump to a subroutine, here if the equal flag is set. Example:
+```brie``` is used to conditionally jump to a routine with the ability to return to the previous position, here if the equal flag is set. Example:
 ```ruby
 comp num 8 num 9
 brie <routine>    # Will not jump to the specified routine
@@ -260,7 +260,7 @@ brie <routine>    # Will jump to the specified routine
 <details open>
   <Summary> Explanation </Summary>
    
-```brin``` is used to conditionally jump to a subroutine, here if the equal flag is **NOT** set. Example:
+```brin``` is used to conditionally jump to a routine with the ability to return to the previous position, here if the equal flag is **NOT** set. Example:
 ```ruby
 comp num 8 num 9
 brin <routine>    # Will jump to the specified routine
