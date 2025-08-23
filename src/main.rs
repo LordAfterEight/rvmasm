@@ -36,8 +36,6 @@ fn main() {
         .open(format!("{}", in_path))
         .unwrap();
 
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
     let mut img_file = OpenOptions::new()
         .write(true)
         .create(true)
