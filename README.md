@@ -77,7 +77,7 @@ var addr = lit 0xBEEF
 <details open>
   <Summary> Explanation </Summary>
   
-```lit``` will use the given value as is (thus "lit" for "literal") without any conversion, which is why the value must not be longer than four characters and it must not contain any special symbols; only ```0-9```and ```A-F``` are allowed. Especially useful when   you need to specify addresses. Examples:
+```lit``` will use the given value as is (thus "lit" for "literal") without any conversion, which is why the value must not be longer than four characters (without `0x`) and it must not contain any special symbols; only ```0-9```and ```A-F``` are allowed. Especially useful when   you need to specify addresses. Examples:
 ```ruby
 lit 0x0FA3
 lit 0FA3
@@ -90,7 +90,7 @@ lit FA3
 <details open>
   <Summary> Explanation </Summary>
   
-```hex``` Interprets the following value as **character**, converting it to its numerical ASCII representation. Examples:
+```hex``` Interprets the following value as **character**, converting it to its numerical ASCII representation. A `hex` must only be a **single** characterExamples:
 ```ruby
 load A hex U        # "U" will be converted to 0x0055 and loaded into Register A
 load A lit 0x0055   # Same value
@@ -192,10 +192,12 @@ stor A var <variable> # Stores the value in the A register to the specified vari
 <details open>
   <Summary> Explanation </Summary>
   
-```jump``` is used to simply jump to a given address. Examples:
+```jump``` is used to simply jump to a given address or routine. Examples:
 ```ruby
 jump lit 0x56FA    # Jumps to the address 0x56FA (the 22266th address) in the memory
 jump num 22266     # You can also use a number directly
+
+jump <routine>
 ```
 </details>
 
@@ -236,7 +238,7 @@ juin num 22266     # You can also use a number directly
 <details open>
   <Summary> Explanation </Summary>
   
-```rtor``` is used to return from a subroutine. Example:
+```rtor``` is used to return from a routine to the previous position. Example:
 ```ruby
 rtor    # This doesn't take any arguments
 ```
