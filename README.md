@@ -309,7 +309,7 @@ setv num 22266 lit 0x0055   # You can also use a number or hex values directly
 <details open>
   <Summary> Explanation </Summary>
   
-```comp``` is used to compare two values. These values must not be bugger than `0xEFFF` (61439). If those values are equal, the CPU's eq_flag will be set. The values to be compared can either be registers or specified directly. Examples:
+```comp``` is used to compare two values. These values must not be bigger than `0xEFFF` (61439). If those values are equal, the CPU's eq_flag will be set. The values to be compared can either be registers or specified directly. Examples:
 ```ruby
 comp lit 0x4000 num 8    # Compares the hexadecimal value 0x4000 with the decimal value 8
 comp reg A num 8         # Compares the content of register A with the decimal value 8
