@@ -365,7 +365,7 @@ rdiv B hex 12     # Divides the value in the B register by 0x12 (18 in decimal)
 <details open>
   <Summary> Explanation </Summary>
 
-```draw``` is a versatile instruction used to print things to the VM's monitor. It can be used to print `str` types, the content of registers or variables. It supports colored printing of `str` types. Examples:
+```draw``` is a versatile instruction used to print things to the VM's monitor. It can be used to print `str` types, the content of registers or variables. It supports colored printing of `str` types. Currently available colors are `red`, `green`, `blue`, `cyan` and `magenta`. Examples:
 ```ruby
 draw str Hello^World! col green    # Prints a green "Hello World!" to the screen
 draw str Hello^World!              # No color specification will default to white
