@@ -27,9 +27,9 @@ RvmASM is an Assembly-ish language for my 16-bit virtual machine Rusty-VM. I mad
 |     Jump      |    Register   |  Arithmetics  | Miscellaneous |
 |---------------|---------------|---------------|---------------|
 | [jump](#jump) | [load](#load) | [comp](#comp) | [noop](#noop) |
-| [jusr](#jusr) | [stor](#stor) | [radd](#radd) | [setv](#setv) |
-| [juie](#juie) |               | [rsub](#rsub) | [draw](#draw) |
-| [juin](#juin) |               | [rmul](#rmul) | [ctrl](#ctrl) |
+| [juie](#juie) | [stor](#stor) | [radd](#radd) | [setv](#setv) |
+| [juin](#juin) |               | [rsub](#rsub) | [draw](#draw) |
+| [bran](#bran) |               | [rmul](#rmul) | [ctrl](#ctrl) |
 | [brie](#brie) |               | [rdiv](#rdiv) |               |
 | [brin](#brin) |               |               |               |
 | [rtor](#rtor) |               |               |               |
@@ -154,7 +154,7 @@ end
 
 routine: entry
 load A num 1
-jusr loop        # Jump to routine called "loop"
+bran loop        # Jump to routine called "loop"
 ctrl cpu halt    # Routine "loop" returns here when it encounters the "rtor" instruction
 end
 ```
@@ -213,16 +213,7 @@ jump <routine>
 ```
 </details>
 
-### ```jusr``` <a name="jusr"></a>
-<details open>
-  <Summary> Explanation </Summary>
-  
-```jusr``` is used just like ```jump``` with the slight difference that it saves the previous position to the stack, allowing the program to return to the previous position using ```rtor```. Examples:
-```ruby
-jusr lit 0x56FA    # Jumps to the address 0x56FA (the 22266th address) in the memory
-jusr num 22266     # You can also use a number directly
-```
-</details>
+
 
 ### ```juie``` <a name="juie"></a>
 <details open>
@@ -246,13 +237,14 @@ juin num 22266     # You can also use a number directly
 ```
 </details>
 
-### ```rtor``` <a name="rtor"></a>
+### ```bran``` <a name="bran"></a>
 <details open>
   <Summary> Explanation </Summary>
   
-```rtor``` is used to return from a routine to the previous position. Example:
+```bran``` is used just like ```jump``` with the slight difference that it saves the previous position to the stack, allowing the program to return to the previous position using ```rtor```. Examples:
 ```ruby
-rtor    # This doesn't take any arguments
+bran lit 0x56FA    # Jumps to the address 0x56FA (the 22266th address) in the memory
+bran num 22266     # You can also use a number directly
 ```
 </details>
 
@@ -260,7 +252,7 @@ rtor    # This doesn't take any arguments
 <details open>
   <Summary> Explanation </Summary>
    
-```brie``` is used to conditionally jump to a routine with the ability to return to the previous position, here if the equal flag is set. Example:
+```brie``` is used just like `bran` with the slight difference of it being conditional, here if the equal flag is set. Example:
 ```ruby
 comp num 8 num 9
 brie <routine>    # Will not jump to the specified routine
@@ -274,13 +266,23 @@ brie <routine>    # Will jump to the specified routine
 <details open>
   <Summary> Explanation </Summary>
    
-```brin``` is used to conditionally jump to a routine with the ability to return to the previous position, here if the equal flag is **NOT** set. Example:
+```brin``` is used just like `bran` with the slight difference of it being conditional, here if the equal flag is **NOT** set. Example:
 ```ruby
 comp num 8 num 9
 brin <routine>    # Will jump to the specified routine
 
 comp num 9 num 9
 brin <routine>    # Will not jump to the specified routine
+```
+</details>
+
+### ```rtor``` <a name="rtor"></a>
+<details open>
+  <Summary> Explanation </Summary>
+  
+```rtor``` is used to return from a routine to the previous position. Example:
+```ruby
+rtor    # This doesn't take any arguments
 ```
 </details>
 
