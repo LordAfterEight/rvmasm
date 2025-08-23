@@ -66,7 +66,7 @@ end      # All that's needed to end the routine definition
 <details open>
   <Summary> Explanation </Summary>
   
-`var` is used to create variables. Currently a variable can only hold a single value (i.e. not a `str`). Variables can be printed to the screen using `draw var <variable>`. Examples:
+`var` is used to create variables. Currently a variable can only hold a single value (i.e. not a `str`). Variables can be loaded into registers, be stored to from registers or be printed to the screen using `draw var <variable>`. Examples:
 ```ruby
 var age = num 34
 var addr = lit 0xBEEF
@@ -142,8 +142,8 @@ end
 
 routine: entry
 load A num 1
-jusr loop      # Jump to routine called "loop"
-halt           # Routine "loop" returns here when it encounters the "rtor" instruction
+jusr loop        # Jump to routine called "loop"
+ctrl cpu halt    # Routine "loop" returns here when it encounters the "rtor" instruction
 end
 ```
 
