@@ -530,7 +530,6 @@ fn main() {
                     },
                     _ => panic("",&instruction, code_line, 0)
                 }
-                code_line += 1;
             }
         }
         code_line += 1;
