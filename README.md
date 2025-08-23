@@ -40,6 +40,8 @@ RvmASM is an Assembly-ish language for my 16-bit virtual machine Rusty-VM. I mad
 These are mostly used to determine how the following value will be interpreted.
 There are seven keywords: ```routine:```, ```end```, ```lit```, ```hex```, ```num```, ```str``` and ```col```.
 
+All number types can have a value from 0 to 61439 (`0xEFFF`) but must not be bigger.
+
 ### ```routine:``` <a name="routine"></a>
 <details open>
   <Summary> Explanation </Summary>
@@ -101,10 +103,10 @@ load A lit 0x0055   # Same value
 <details open>
   <Summary> Explanation </Summary>
   
-```num``` enables you to use any decimal number from 0 to 65535. Examples:
+```num``` enables you to use any decimal number from 0 to 61439. Examples:
 ```ruby
 load A num 7        # Number 7 will be loaded into the A register. Would be the same as "lit 0x0007"
-load X num 65535    # Number 65535 will be loaded into the X register. Would be the same as "lit 0xFFFF"
+load X num 61439    # Number 61439 will be loaded into the X register. Would be the same as "lit 0xEFFF"
 ```
 </details>
 
