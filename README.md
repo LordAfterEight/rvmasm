@@ -8,32 +8,31 @@ Now you can use the ```rvmasm``` command to build a binary from any ```.rvmasm``
 rvmasm code.rvmasm output
 ```
 
-# Documentation (CURRENTLY NOT UP TO DATE)
+# Documentation
 RvmASM is an Assembly-ish language for my 16-bit virtual machine Rusty-VM. I made this assembly language and its parser to allow me and maybe even others to easily create programs for the virtual machine without needing to write raw binary values into a file. It is currently under development, just like the virtual machine itself, so both are far from being finished. Under this paragraph you will find a documentation of the entire language. This documentation will constantly change as more features and content are added to the language.
 
 # Table of Contents
 
 ### 1. [Keywords](#Keywords)
-   - [routine:](#routine)
-   - [end](#end)
-   - [lit](#lit)
-   - [hex](#hex)
-   - [num](#num)
-   - [str](#str)
-   - [col](#col)
 
-### 2. [Routines](#Routines)
-   
+|    Types    | 2. [Routines](#Routines) |    Other    |
+|-------------|--------------------------|-------------|
+| [lit](#lit) | [routine:](#routine)     | [var](#var) |
+| [hex](#hex) | [end](#end)              | [col](#col) |
+| [num](#num) |                          |             |
+| [str](#str) |                          |             |
+
 ### 3. [Instructions](#Instructions)
 
-
-| Jump | Register | Arithmetics | Miscellaneous |
-|-------------|-------------|-------------|-------------|
-|[jump](#jump)|[load](#load)|[comp](#comp)|[noop](#noop)|
-|[jusr](#jusr)|[stor](#stor)|[radd](#radd)|[setv](#setv)|
-|[juie](#juie)|             |[rsub](#rsub)|
-|[juin](#juin)|             |[rmul](#rmul)|
-|[rtor](#rtor)|             |[rdiv](#rdiv)|
+|     Jump      |    Register   |  Arithmetics  | Miscellaneous |
+|---------------|---------------|---------------|---------------|
+| [jump](#jump) | [load](#load) | [comp](#comp) | [noop](#noop) |
+| [jusr](#jusr) | [stor](#stor) | [radd](#radd) | [setv](#setv) |
+| [juie](#juie) |               | [rsub](#rsub) | [draw](#draw) |
+| [juin](#juin) |               | [rmul](#rmul) | [ctrl](#ctrl) |
+| [brie](#brie) |               | [rdiv](#rdiv) |               |
+| [brin](#brin) |               |               |               |
+| [rtor](#rtor) |               |               |               |
 
 
 
@@ -60,6 +59,17 @@ routine: routine1       # Creates a routine with the name routine1
 ```ruby
 ...
 end      # All that's needed to end the routine definition
+```
+</details>
+
+### ```var``` <a name="var"></a>
+<details open>
+  <Summary> Explanation </Summary>
+  
+`var` is used to create variables. Currently a variable can only hold a single value (i.e. not a `str`). Variables can be printed to the screen using `draw var <variable>`. Examples:
+```ruby
+var age = num 34
+var addr = lit 0xBEEF
 ```
 </details>
 
@@ -170,10 +180,11 @@ load Y lit 0x06AF
 <details open>
   <Summary> Explanation </Summary>
   
-```stor``` is used to store a value from the register specified by the first argument to the address specified in the second argument. Examples:
+```stor``` is used to store a value from the register specified by the first argument to the address specified in the second argument. It's also possible to store a registers value to a variable Examples:
 ```ruby
-stor A lit 0x56FA  # Stores the value saved in the A register to address 0x56FA (the 22266th address) in the memory
-stor A num 22266   # You can also use a number directly
+stor A lit 0x56FA  # Stores the value in the A register to address 0x56FA (the 22266th address) in the memory
+stor A num 22266
+stor A var <variable> # Stores the value in the A register to the specified variable
 ```
 </details>
 
@@ -231,6 +242,34 @@ rtor    # This doesn't take any arguments
 ```
 </details>
 
+### ```brie``` <a name="brie"></a>
+<details open>
+  <Summary> Explanation </Summary>
+   
+```brie``` is used to conditionally jump to a subroutine, here if the equal flag is set. Example:
+```ruby
+comp num 8 num 9
+brie <routine>    # Will not jump to the specified routine
+
+comp num 9 num 9
+brie <routine>    # Will jump to the specified routine
+```
+</details>
+
+### ```brin``` <a name="brin"></a>
+<details open>
+  <Summary> Explanation </Summary>
+   
+```brin``` is used to conditionally jump to a subroutine, here if the equal flag is **NOT** set. Example:
+```ruby
+comp num 8 num 9
+brin <routine>    # Will jump to the specified routine
+
+comp num 9 num 9
+brin <routine>    # Will not jump to the specified routine
+```
+</details>
+
 ### ```noop``` <a name="noop"></a>
 <details open>
   <Summary> Explanation </Summary>
@@ -247,7 +286,7 @@ noop    # Makes the CPU do nothing for one cycle
   
 ```setv``` is used to set an address in the memory to the specified value. Examples:
 ```ruby
-setv lit 0x56FA hex U  # Sets the address 0x56FA (the 22266th address) in the memory to the ASCII representation of the character 'U'
+setv lit 0x56FA hex U       # Sets the address 0x56FA (the 22266th address) in the memory to the ASCII representation of the character 'U'
 setv num 22266 lit 0x0055   # You can also use a number or hex values directly
 ```
 </details>
@@ -305,5 +344,32 @@ rmul X hex 12     # Multiplies the value in the X register by 0x12 (18 in decima
 ```ruby
 rdiv A num 8      # Divides the value in the A register by 8
 rdiv X hex 12     # Divides the value in the X register by 0x12 (18 in decimal)
+```
+</details>
+
+### ```draw``` <a name="draw"></a>
+<details open>
+  <Summary> Explanation </Summary>
+
+```draw``` is a versatile instruction used to print things to the VM's monitor. It can be used to print `str` types, the content of registers or variables. It supports colored printing of `str` types. Examples:
+```ruby
+draw str Hello^World! col green    # Prints a green "Hello World!" to the screen
+draw str Hello^World!              # No color specification will default to white
+
+draw reg A        # Prints the content of the A register
+draw var value    # Prints the value of the variable "value"
+```
+</details>
+
+### ```ctrl``` <a name="ctrl"></a>
+<details open>
+  <Summary> Explanation </Summary>
+
+```ctrl`` is used to control the GPU and the CPU. Examples:
+```ruby
+ctrl cpu halt     # Stops the CPU and execution of the program
+
+ctrl gpu clear    # Clears the screen
+ctrl gpu reset    # Resets the gpu
 ```
 </details>
