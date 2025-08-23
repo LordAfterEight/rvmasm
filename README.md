@@ -66,7 +66,7 @@ end      # All that's needed to end the routine definition
 <details open>
   <Summary> Explanation </Summary>
   
-`var` is used to create variables. Currently a variable can only hold a single value (i.e. not a `str`). Variables can be loaded into registers, be stored to from registers or be printed to the screen using `draw var <variable>`. Examples:
+`var` is used to create variables. Currently a variable can only hold a single value (i.e. not a `str`) from 0x0 to 0xEFFF. Variables can be loaded into registers, be stored to from registers or be printed to the screen using `draw var <variable>`. Examples:
 ```ruby
 var age = num 34
 var addr = lit 0xBEEF
@@ -297,7 +297,7 @@ setv num 22266 lit 0x0055   # You can also use a number or hex values directly
 <details open>
   <Summary> Explanation </Summary>
   
-```comp``` is used to compare two values. If those values are equal, the CPU's eq_flag will be set. The values to be compared can either be registers or specified directly. Examples:
+```comp``` is used to compare two values. These values must not be bugger than `0xEFFF` (61439). If those values are equal, the CPU's eq_flag will be set. The values to be compared can either be registers or specified directly. Examples:
 ```ruby
 comp lit 0x4000 num 8    # Compares the hexadecimal value 0x4000 with the decimal value 8
 comp reg A num 8         # Compares the content of register A with the decimal value 8
