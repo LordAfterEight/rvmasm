@@ -103,11 +103,27 @@ fn main() {
 
 
     for line in code_string.lines() {
-        let instruction: Vec<&str> = line.split(' ').collect();
+        // Find the first non-space character
+        let first_non_space_idx = line.find(|c| c != ' ').unwrap_or(0);
+
+        // Find the end of the first word
+        let rest = &line[first_non_space_idx..];
+        let first_word_end = rest.find(' ').unwrap_or(rest.len());
+
+        // The first word slice includes leading spaces
+        let first_word_with_spaces = &line[..first_non_space_idx + first_word_end];
+
+        // The remainder after the first word
+        let remainder = &rest[first_word_end..].trim_start();
+
+        // Split the remainder by spaces
+        let mut instruction: Vec<&str> = Vec::new();
+        instruction.push(first_word_with_spaces);
+        instruction.extend(remainder.split(' '));
         match mode {
             Mode::DefineFileSystem => {
                 match instruction[0] {
-                    "size" => {
+                    "   size" => {
                         match instruction.len() {
                             1 => panic("Missing size definition", &instruction, code_line, 0),
                             2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
@@ -139,7 +155,7 @@ fn main() {
             Mode::DefineRoutine => {
                 routines[routine_ptr].address = instr_ptr as u16;
                 match instruction[0] {
-                    "load" => {
+                    "    load" => {
                         let instr = match parse_regs(&instruction, code_line, 1) {
                             0x0041 => opcodes::LOAD_AREG,
                             0x0042 => opcodes::LOAD_BREG,
@@ -163,7 +179,7 @@ fn main() {
                         routines[routine_ptr].instructions.push(instr);
                         routines[routine_ptr].instructions.push(value);
                     }
-                    "stor" => {
+                    "    stor" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let instr = match register {
                             0x0041 => opcodes::STOR_AREG,
@@ -189,7 +205,7 @@ fn main() {
                             }
                         }
                     }
-                    "draw" => {
+                    "    draw" => {
                         match instruction[1] {
                             "str" => {
                                 let mut color_byte = 0x0A;
@@ -287,7 +303,7 @@ fn main() {
                             _ => panic("", &instruction, code_line, 1)
                         }
                     }
-                    "cmov" => {
+                    "    cmov" => {
                         let mut instr = 0xA000;
                         match instruction[1] {
                             "up" => instr = opcodes::GPU_MV_C_UP,
@@ -303,7 +319,7 @@ fn main() {
 
                         gpu_ptr += 1;
                     }
-                    "ctrl" => {
+                    "    ctrl" => {
                         match instruction[1] {
                             "gpu" => {
                                 let mut instr = 0xA000;
@@ -330,7 +346,7 @@ fn main() {
                             _ => panic("Unknown control", &instruction, code_line, 2),
                         }
                     }
-                    "radd" => {
+                    "    radd" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
                         if value > 61439 {
@@ -340,7 +356,7 @@ fn main() {
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
                     }
-                    "rsub" => {
+                    "    rsub" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
                         if value > 61439 {
@@ -350,7 +366,7 @@ fn main() {
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
                     }
-                    "rmul" => {
+                    "    rmul" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
                         if value > 61439 {
@@ -360,7 +376,7 @@ fn main() {
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
                     }
-                    "rdiv" => {
+                    "    rdiv" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
                         if value > 61439 {
@@ -370,43 +386,43 @@ fn main() {
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
                     }
-                    "bran" => {
+                    "    bran" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::JMP_TO_SR);
                         routines[routine_ptr].instructions.push(new_address);
                     }
-                    "jump" => {
+                    "    jump" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::JMP_TO_AD);
                         routines[routine_ptr].instructions.push(new_address);
                     }
-                    "juie" => {
+                    "    juie" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::JUMP_IFEQ);
                         routines[routine_ptr].instructions.push(new_address);
                     }
-                    "brie" => {
+                    "    brie" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::BRAN_IFEQ);
                         routines[routine_ptr].instructions.push(new_address);
                     }
-                    "juin" => {
+                    "    juin" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::JUMP_INEQ);
                         routines[routine_ptr].instructions.push(new_address);
                     }
-                    "brin" => {
+                    "    brin" => {
                         let subroutine_name = instruction [1];
                         let new_address = return_routine_address(subroutine_name, &mut routines);
                         routines[routine_ptr].instructions.push(opcodes::BRAN_INEQ);
                         routines[routine_ptr].instructions.push(new_address);
                     }
-                    "comp" => {
+                    "    comp" => {
                         let val_a;
                         let val_b;
                         if instruction[1] == "reg" {
@@ -428,10 +444,10 @@ fn main() {
                         if val_a == val_b {
                         }
                     }
-                    "inpt" => {
+                    "    inpt" => {
                         routines[routine_ptr].instructions.push(AWAIT_INP);
                     }
-                    "rtor" => {
+                    "    rtor" => {
                         routines[routine_ptr].instructions.push(opcodes::RET_TO_OR);
                     }
                     "end" => {
@@ -444,7 +460,7 @@ fn main() {
                         }
                         continue;
                     }
-                    "var" => {
+                    "    var" => {
                         match instruction.len() {
                             1 => panic("Missing variable name", &instruction, code_line, 0),
                             2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
@@ -484,6 +500,30 @@ fn main() {
                         routines.push(Routine::new("Filesystem".to_string(), instr_ptr as u16));
                         file_systems.push(fs::FileSystem::new(instr_ptr));
                         println!("{} \"{}\" @ {}", "Building filesystem".magenta(), routines[routine_ptr].name.cyan(), format!("{:#06X}", instr_ptr).yellow());
+                    },
+                    "var" => {
+                        match instruction.len() {
+                            1 => panic("Missing variable name", &instruction, code_line, 0),
+                            2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
+                            3 => panic("Expected argument of type: num/lit/hex. Maybe the type annotation is missing?", &instruction, code_line, 2),
+                            _ => {}
+                        }
+                        let mut variable = Variable::new(instruction[1].to_string(), var_ptr);
+
+                        match instruction[2] {
+                            "=" => {
+                                let value = parse_hex_lit_num(&instruction, code_line, 3, 0);
+                                if value > 61439 {
+                                    panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                                };
+                                variable.value = value;
+                                memory[var_ptr as usize] = value;
+                                println!("  -> Allocating variable \"{}\" with value {:#06X} @ {:#06X}", variable.name.cyan(), value, var_ptr);
+                            }
+                            _ => panic("Expected \"=\"", &instruction, code_line, 2)
+                        }
+                        variables.push(variable);
+                        var_ptr += 1;
                     }
                     "#" | "" | "   " => {
                         continue;
