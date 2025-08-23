@@ -40,7 +40,7 @@ RvmASM is an Assembly-ish language for my 16-bit virtual machine Rusty-VM. I mad
 These are mostly used to determine how the following value will be interpreted.
 There are seven keywords: ```routine:```, ```end```, ```lit```, ```hex```, ```num```, ```str``` and ```col```.
 
-All number types can have a value from 0 to 61439 (`0xEFFF`) but must not be bigger.
+All number types can have a value from 0 to 61439 (`0xEFFF`) but must not be bigger. `lit`, `hex` and `num` are always interchangeable as they're just different representations of the same value.
 
 ### ```routine:``` <a name="routine"></a>
 <details open>
