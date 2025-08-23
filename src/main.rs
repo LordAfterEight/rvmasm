@@ -172,9 +172,22 @@ fn main() {
                             0x0044 => opcodes::STOR_DREG,
                             _ => 0
                         };
-                        let addr = parse_hex_lit_num(&instruction, code_line, 2, 0);
-                        routines[routine_ptr].instructions.push(instr);
-                        routines[routine_ptr].instructions.push(addr);
+                        match instruction[2] {
+                            "var" => {
+                                let var_name = instruction[3];
+                                for variable in variables.iter() {
+                                    if variable.name == var_name {
+                                        routines[routine_ptr].instructions.push(instr);
+                                        routines[routine_ptr].instructions.push(variable.address as u16);
+                                    }
+                                }
+                            },
+                            _ => {
+                                let addr = parse_hex_lit_num(&instruction, code_line, 2, 0);
+                                routines[routine_ptr].instructions.push(instr);
+                                routines[routine_ptr].instructions.push(addr);
+                            }
+                        }
                     }
                     "draw" => {
                         match instruction[1] {
@@ -488,7 +501,7 @@ fn main() {
 
     println!();
 
-    memory[0x1000] = opcodes::JMP_TO_SR;
+    memory[0x1000] = opcodes::JMP_TO_AD;
     memory[0x1001] = routine_addresses[routine_addresses.len() - 1];
     instr_ptr += 2;
 
