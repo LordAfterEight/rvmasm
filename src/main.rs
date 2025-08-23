@@ -142,15 +142,29 @@ fn main() {
                 routines[routine_ptr].address = instr_ptr as u16;
                 match instruction[0] {
                     "load" => {
-                        let register = parse_regs(&instruction, code_line, 1);
-                        let instr = match register {
+                        let instr = match parse_regs(&instruction, code_line, 1) {
                             0x0041 => opcodes::LOAD_AREG,
                             0x0042 => opcodes::LOAD_BREG,
                             0x0043 => opcodes::LOAD_CREG,
                             0x0044 => opcodes::LOAD_DREG,
                             _ => 0
                         };
-                        let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
+                        let mut temp_value = 0;
+                        let value = match instruction[2] {
+                            "var" => {
+                                let var_name = instruction[3];
+                                println!("  -> Loading variable \"{}\"", var_name.cyan());
+                                for variable in variables.iter() {
+                                    println!("  -> Checking variable \"{}\"", variable.name.cyan());
+                                    if variable.name == var_name {
+                                        temp_value = ((0xF << 12) as u16) | (variable.address as u16);
+                                        println!("  -> Loading variable \"{}\" @ {:#06X}", variable.name.cyan(), variable.address);
+                                    }
+                                }
+                                temp_value
+                            },
+                            _ => parse_hex_lit_num(&instruction, code_line, 2, 0),
+                        };
                         routines[routine_ptr].instructions.push(instr);
                         routines[routine_ptr].instructions.push(value);
                     }
@@ -311,6 +325,9 @@ fn main() {
                     "radd" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
+                        if value > 61439 {
+                            panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                        };
                         routines[routine_ptr].instructions.push(opcodes::INC_REG_V);
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
@@ -318,6 +335,9 @@ fn main() {
                     "rsub" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
+                        if value > 61439 {
+                            panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                        };
                         routines[routine_ptr].instructions.push(opcodes::DEC_REG_V);
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
@@ -325,6 +345,9 @@ fn main() {
                     "rmul" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
+                        if value > 61439 {
+                            panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                        };
                         routines[routine_ptr].instructions.push(opcodes::MUL_REG_V);
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
@@ -332,6 +355,9 @@ fn main() {
                     "rdiv" => {
                         let register = parse_regs(&instruction, code_line, 1);
                         let value = parse_hex_lit_num(&instruction, code_line, 2, 0);
+                        if value > 61439 {
+                            panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                        };
                         routines[routine_ptr].instructions.push(opcodes::DIV_REG_V);
                         routines[routine_ptr].instructions.push(register);
                         routines[routine_ptr].instructions.push(value);
@@ -385,6 +411,9 @@ fn main() {
                         } else {
                             val_b = parse_hex_lit_num(&instruction, code_line, 3, 0);
                         }
+                        if (val_a > 61439) || (val_b > 61439) {
+                            panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                        };
                         routines[routine_ptr].instructions.push(opcodes::COMP_REGS);
                         routines[routine_ptr].instructions.push(val_a);
                         routines[routine_ptr].instructions.push(val_b);
@@ -419,6 +448,9 @@ fn main() {
                         match instruction[2] {
                             "=" => {
                                 let value = parse_hex_lit_num(&instruction, code_line, 3, 0);
+                                if value > 61439 {
+                                    panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
+                                };
                                 variable.value = value;
                                 memory[var_ptr as usize] = value;
                                 println!("  -> Allocating variable \"{}\" with value {:#06X} @ {:#06X}", variable.name.cyan(), value, var_ptr);
