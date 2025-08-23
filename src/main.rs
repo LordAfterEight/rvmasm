@@ -153,12 +153,9 @@ fn main() {
                         let value = match instruction[2] {
                             "var" => {
                                 let var_name = instruction[3];
-                                println!("  -> Loading variable \"{}\"", var_name.cyan());
                                 for variable in variables.iter() {
-                                    println!("  -> Checking variable \"{}\"", variable.name.cyan());
                                     if variable.name == var_name {
                                         temp_value = ((0xF << 12) as u16) | (variable.address as u16);
-                                        println!("  -> Loading variable \"{}\" @ {:#06X}", variable.name.cyan(), variable.address);
                                     }
                                 }
                                 temp_value
