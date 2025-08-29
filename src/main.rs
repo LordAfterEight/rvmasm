@@ -6,6 +6,7 @@ use std::{fs::OpenOptions, io::Read};
 use crate::opcodes::AWAIT_INP;
 
 const ROM_SIZE: usize = 65536; // 64 KiB
+const VARIABLE_END_MARKER: u16 = 0xCAFE;
 
 // TODO:
 
@@ -90,7 +91,7 @@ fn main() {
     let mut instr_ptr: usize = 0x1002;
     let mut gpu_ptr: usize = 0x0300;
 
-    let mut code_line = 1;
+    let mut code_line = 0;
 
     let mut mode = Mode::Normal;
     let mut fs_ptr = 0;
@@ -120,6 +121,7 @@ fn main() {
         let mut instruction: Vec<&str> = Vec::new();
         instruction.push(first_word_with_spaces);
         instruction.extend(remainder.split(' '));
+        code_line += 1;
         match mode {
             Mode::DefineFileSystem => {
                 match instruction[0] {
@@ -521,26 +523,7 @@ fn main() {
                         continue;
                     }
                     "    var" => {
-                        match instruction.len() {
-                            1 => panic("Missing variable name", &instruction, code_line, 0),
-                            2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
-                            3 => panic("Expected argument of type: num/lit/hex. Maybe the type annotation is missing?", &instruction, code_line, 2),
-                            _ => {}
-                        }
-                        let mut variable = Variable::new(instruction[1].to_string(), var_ptr);
-
-                        match instruction[2] {
-                            "=" => {
-                                let value = parse_hex_lit_num(&instruction, code_line, 3, 0);
-                                if value > 61439 {
-                                    panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
-                                };
-                                variable.value = value;
-                                memory[var_ptr as usize] = value;
-                                println!("  -> Allocating variable \"{}\" with value {:#06X} @ {:#06X}", variable.name.cyan(), value, var_ptr);
-                            }
-                            _ => panic("Expected \"=\"", &instruction, code_line, 2)
-                        }
+                        let variable = declare_variable(instruction, code_line, var_ptr, &mut memory).unwrap();
                         variables.push(variable);
                         var_ptr += 1;
                     }
@@ -562,26 +545,7 @@ fn main() {
                         println!("{} \"{}\" @ {}", "Building filesystem".magenta(), routines[routine_ptr].name.cyan(), format!("{:#06X}", instr_ptr).yellow());
                     },
                     "var" => {
-                        match instruction.len() {
-                            1 => panic("Missing variable name", &instruction, code_line, 0),
-                            2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
-                            3 => panic("Expected argument of type: num/lit/hex. Maybe the type annotation is missing?", &instruction, code_line, 2),
-                            _ => {}
-                        }
-                        let mut variable = Variable::new(instruction[1].to_string(), var_ptr);
-
-                        match instruction[2] {
-                            "=" => {
-                                let value = parse_hex_lit_num(&instruction, code_line, 3, 0);
-                                if value > 61439 {
-                                    panic("Value must not be higher than 0xEFFF", &instruction, code_line, 0);
-                                };
-                                variable.value = value;
-                                memory[var_ptr as usize] = value;
-                                println!("  -> Allocating variable \"{}\" with value {:#06X} @ {:#06X}", variable.name.cyan(), value, var_ptr);
-                            }
-                            _ => panic("Expected \"=\"", &instruction, code_line, 2)
-                        }
+                        let variable = declare_variable(instruction, code_line, var_ptr, &mut memory).unwrap();
                         variables.push(variable);
                         var_ptr += 1;
                     }
@@ -592,7 +556,6 @@ fn main() {
                 }
             }
         }
-        code_line += 1;
     }
 
     let mut addr_used = 0;
@@ -644,6 +607,50 @@ fn main() {
     }
 
     println!(" | ~{:.2}%", (addr_used as f32 / 65536.0) * 100.0);
+}
+
+fn declare_variable(instruction: Vec<&str>, code_line: usize, var_ptr: u16, memory: &mut [u16; 65536]) -> Option<Variable> {
+    match instruction.len() {
+        1 => panic("Missing variable name", &instruction, code_line, 0),
+        2 => panic("Expected argument of type: num/lit/hex", &instruction, code_line, 1),
+        3 => panic("Expected argument of type: num/lit/hex. Maybe the type annotation is missing?", &instruction, code_line, 2),
+        _ => {}
+    }
+    let mut variable = Variable::new(instruction[1].to_string(), var_ptr);
+
+    match instruction[2] {
+        "=" => {
+            let value = match instruction[3] {
+                "str" => {
+                    let mut out_vec: Vec<u16> = Vec::new();
+                    out_vec.push(VarType::MultiWord as u16);
+                    for char_byte in instruction[4].chars() {
+                        if char_byte == '^' {
+                            out_vec.push(0x0020);
+                        } else {
+                            out_vec.push(char_byte as u16);
+                        }
+                    }
+                    out_vec.push(VARIABLE_END_MARKER);
+                    out_vec
+                },
+                _ => vec![0xBEEF, parse_hex_lit_num(&instruction, code_line, 3, 0), VARIABLE_END_MARKER]
+            };
+            for i in 0..value.len() {
+                if (value[i] > 61439) && (value[i] != VARIABLE_END_MARKER) && (value[0] != VarType::MultiWord as u16) {
+                    panic(&format!("Value at word {} must not be higher than 0xEFFF", i), &instruction, code_line, 0);
+                };
+            }
+            variable.value = value;
+            println!("  -> Allocating variable \"{}\" @ {:#06X} with values:", variable.name.cyan(), var_ptr);
+            for i in 0..variable.value.len() {
+                memory[var_ptr as usize + i as usize] = variable.value[i];
+            }
+            return Some(variable);
+        }
+        _ => panic("Expected \"=\"", &instruction, code_line, 2)
+    }
+    return None;
 }
 
 fn return_routine_address(routine_name: &str, routines: &Vec<Routine>) -> u16 {
@@ -725,7 +732,7 @@ pub struct Routine {
 #[derive(Clone)]
 pub struct Variable {
     pub name: String,
-    pub value: u16,
+    pub value: Vec<u16>,
     pub address: u16,
 }
 
@@ -745,7 +752,7 @@ impl Variable {
     pub fn new(name: String, address: u16) -> Self {
         Self {
             name,
-            value: 0,
+            value: vec![0],
             address,
         }
     }
@@ -775,4 +782,9 @@ enum Mode {
     Normal,
     DefineRoutine,
     DefineFileSystem,
+}
+
+enum VarType {
+    Word = 0xBEEF,
+    MultiWord = 0xF00D
 }
