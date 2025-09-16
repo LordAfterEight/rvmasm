@@ -6,7 +6,7 @@ use std::{fs::OpenOptions, io::Read};
 use crate::opcodes::AWAIT_INP;
 
 const ROM_SIZE: usize = 65536; // 64 KiB
-const VARIABLE_END_MARKER: u16 = 0xCAFE;
+const VARIABLE_END_MARKER: u16 = 0xDEAD;
 
 // TODO:
 
@@ -524,8 +524,8 @@ fn main() {
                     }
                     "    var" => {
                         let variable = declare_variable(instruction, code_line, var_ptr, &mut memory).unwrap();
+                        var_ptr += variable.value.len() as u16;
                         variables.push(variable);
-                        var_ptr += 1;
                     }
                     "   " | "" | "//" => code_line += 1,
                     _ => panic("\nMissing indentation",&instruction, code_line, 0)
@@ -546,8 +546,8 @@ fn main() {
                     },
                     "var" => {
                         let variable = declare_variable(instruction, code_line, var_ptr, &mut memory).unwrap();
+                        var_ptr += variable.value.len() as u16;
                         variables.push(variable);
-                        var_ptr += 1;
                     }
                     "#" | "" | "   " => {
                         continue;
