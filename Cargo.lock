@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rvmasm"
+name = "rvmasm-legacy"
 version = "1.8.1"
 dependencies = [
  "colored",
