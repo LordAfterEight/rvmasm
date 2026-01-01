@@ -1,5 +1,5 @@
 [package]
-name = "rvmasm"
+name = "rvmasm-legacy"
 version = "1.8.1"
 edition = "2024"
 tags = ["assembler", "vm", "virtual machine"]
