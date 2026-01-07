@@ -1,0 +1,3 @@
+reg:0 <- reg:1 + $FFFF
+reg:0 <- reg:1 + reg:2
+reg:4 <- $FFFF
