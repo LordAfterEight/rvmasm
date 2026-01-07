@@ -1,1 +1,0 @@
-/home/elias/programming/rust/rvmasm/target/release/rvmasm: /home/elias/programming/rust/rvmasm/src/fs.rs /home/elias/programming/rust/rvmasm/src/main.rs /home/elias/programming/rust/rvmasm/src/opcodes.rs
