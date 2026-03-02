@@ -1,0 +1,3 @@
+#MAPTO 0x0
+// Comment
+reg:0 <- reg:1 + reg:2
