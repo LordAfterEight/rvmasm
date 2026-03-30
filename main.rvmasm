@@ -1,0 +1,24 @@
+@LBL data
+@MAP $5000
+    @VAR msg "Hello World"
+
+@LBL functions
+@MAP $6000
+    @LBL print
+        #PSH reg:0
+        #PSH reg:1
+        reg:1 <- $0
+        @LBL loop
+            reg:0 <- addr: reg:2 + reg:1
+            reg:0 -> $300
+            reg:1 <- reg:1 + $1
+            #JMP loop ? reg:0 != $0
+        #POP reg:1
+        #POP reg:0
+        #RTR pop
+
+@LBL start
+@MAP $4000
+    reg:2 <- addr: data.msg
+    #BRA functions.print
+    #HLT
