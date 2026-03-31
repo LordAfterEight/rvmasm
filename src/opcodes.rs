@@ -32,6 +32,10 @@ pub enum OpCodes {
     /// Writes the value from register RS1 to the address stored in register RS2.
     STOR_WORD = 0x07,
 
+    PUSH_RGST = 0x08,
+
+    POP_RGST  = 0x09,
+
     /// OP(7) - IMM(25)
     /// Unconditionally jumps to the immediate 25-bit address.
     JUMP_IMM = 0x10,

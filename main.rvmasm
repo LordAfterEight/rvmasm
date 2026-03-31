@@ -1,24 +1,31 @@
-@LBL data
-@MAP $5000
+>CFG bit-width 8
+>PRG
+
+@BLK mmio $3000
+    @VAR serial_port $30
+    @VAR gpu_update_register $301555
+    @VAR PS2 $3F8
+
+@BLK data $5000
     @VAR msg "Hello World"
 
-@LBL functions
-@MAP $6000
+@BLK functions $6000
     @LBL print
         #PSH reg:0
         #PSH reg:1
         reg:1 <- $0
         @LBL loop
-            reg:0 <- addr: reg:2 + reg:1
-            reg:0 -> $300
+            reg:0 <- *(reg:2 + reg:1)
+            reg:0 -> mmio.serial_port
             reg:1 <- reg:1 + $1
-            #JMP loop ? reg:0 != $0
+            #JMP functions.loop ? reg:0 != $0
+        @END
         #POP reg:1
         #POP reg:0
         #RTR pop
+    @END
 
-@LBL start
-@MAP $4000
-    reg:2 <- addr: data.msg
+@BLK start $4000
+    reg:2 <- &data.msg
     #BRA functions.print
     #HLT
