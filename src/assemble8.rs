@@ -95,7 +95,6 @@ pub fn assemble(
                         Err(err) => return Err(err),
                     }
                 };
-                println!("Jump to address {:?}", address);
             },
             "#RTR" => {},
             "#BRA" => {},

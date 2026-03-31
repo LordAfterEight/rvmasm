@@ -197,28 +197,30 @@ fn main() {
         }
     }
 
-    println!("\nLive Edit\n");
+    if live_edit {
+        println!("\nLive Edit\n");
 
-    while live_edit {
-        let mut buf = String::new();
-        print!("{} <= ", out_path);
-        _ = std::io::stdout().flush();
-        _ = std::io::stdin().read_line(&mut buf);
-        let input: Vec<&str> = buf.split_whitespace().collect();
+        loop {
+            let mut buf = String::new();
+            print!("{} <= ", out_path);
+            _ = std::io::stdout().flush();
+            _ = std::io::stdin().read_line(&mut buf);
+            let input: Vec<&str> = buf.split_whitespace().collect();
 
-        match input[0] {
-            "list" => match input[1] {
-                "variables" => {
-                    for block in &mem.blocks {
-                        for variable in &block.variables {
-                            println!("  \x1b[38;2;100;100;100mBlock {}: Variable {}, at address 0x{:04X}\x1b[m", block.name, variable.name, variable.address);
+            match input[0] {
+                "list" => match input[1] {
+                    "variables" => {
+                        for block in &mem.blocks {
+                            for variable in &block.variables {
+                                println!("  \x1b[38;2;100;100;100mBlock {}: Variable {}, at address 0x{:04X}\x1b[m", block.name, variable.name, variable.address);
+                            }
                         }
-                    }
+                    },
+                    _ => println!("Invalid argument: {}", input[1])
                 },
-                _ => println!("Invalid argument: {}", input[1])
-            },
-            "exit" => break,
-            _ => println!("Invalid command"),
+                "exit" => break,
+                _ => println!("Invalid command"),
+            }
         }
     }
 }
