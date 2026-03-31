@@ -7,7 +7,8 @@ mod opcodes;
 
 use std::io::Write;
 
-use crate::logging::{log, LoggingVerbosity};
+use crate::err::AssembleError;
+use crate::logging::{LoggingVerbosity, log};
 use crate::mem::Memory;
 
 fn main() {
@@ -52,7 +53,9 @@ fn main() {
     }
 
     if !src_path_provided {
-        eprint!("\x1b[38;2;255;200;50mWARNING: No src path provided. Looking for '\x1b[38;2;255;50;255mmain.rvmasm\x1b[38;2;255;200;0m'\x1b[0m\n");
+        eprint!(
+            "\x1b[38;2;255;200;50mWARNING: No src path provided. Looking for '\x1b[38;2;255;50;255mmain.rvmasm\x1b[38;2;255;200;0m'\x1b[0m\n"
+        );
     }
 
     // ======== Loading ========
@@ -67,11 +70,13 @@ fn main() {
 
     let mut line_counter = 0;
     let mut assemble_now = false;
+    let mut file_size = 0;
+    let mut reset_vector = 0;
     eprint!("\n");
 
     // ======== Memory Init ========
     let mut mem = Memory {
-        data: Vec::with_capacity(0x1_0000_0000),
+        data: Box::new(Vec::new()),
         labels: Vec::new(),
         blocks: Vec::new(),
         block_tracker: 0,
@@ -104,7 +109,7 @@ fn main() {
                 ">" => match tokens[0] {
                     ">CFG" => match tokens[1] {
                         "bit-width" => {
-                            bit_width = u8::from_str_radix(tokens[2], 10).unwrap();
+                            bit_width = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
                             logging::log(
                                 &format!(
                                     "CPU Bit width: {} bit{}",
@@ -116,16 +121,24 @@ fn main() {
                             continue;
                         }
                         "file-size" => {
+                            file_size = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
                             logging::log(
-                                &format!("Setting output file size to {} B", tokens[2]),
+                                &format!("Setting output file size to {}B", file_size),
                                 &logging,
                             );
-                            mem.data = Vec::with_capacity(
-                                u32::from_str_radix(tokens[2], 10).unwrap() as usize,
-                            )
+                        }
+                        "reset-vector" => {
+                            reset_vector = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
+                            logging::log(
+                                &format!("Setting reset vector to {:08X}", reset_vector),
+                                &logging,
+                            );
                         }
                         _ => {
-                            eprintln!("\x1b[38;2;255;50;0mError: Invalid configurator: \x1b[38;2;127;255;200m{}\x1b[0m", tokens[1]);
+                            eprintln!(
+                                "\x1b[38;2;255;50;0mError: Invalid configurator: \x1b[38;2;127;255;200m{}\x1b[0m",
+                                tokens[1]
+                            );
                             break;
                         }
                     },
@@ -141,12 +154,18 @@ fn main() {
                         assemble_now = true;
                     }
                     _ => {
-                        eprintln!("\x1b[38;2;255;50;0mError: Invalid configurator: \x1b[38;2;127;255;200m{}\x1b[0m", tokens[0]);
+                        eprintln!(
+                            "\x1b[38;2;255;50;0mError: Invalid configurator: \x1b[38;2;127;255;200m{}\x1b[0m",
+                            tokens[0]
+                        );
                         break;
                     }
                 },
                 _ => {
-                    eprintln!("\x1b[38;2;255;50;0mError: Invalid Token: \x1b[38;2;127;255;200m{}\x1b[0m | \x1b[38;2;255;200;50mConfigurator '>CFG' expected here\x1b[0m", first_token_symbol);
+                    eprintln!(
+                        "\x1b[38;2;255;50;0mError: Invalid Token: \x1b[38;2;127;255;200m{}\x1b[0m | \x1b[38;2;255;200;50mConfigurator '>CFG' expected here\x1b[0m",
+                        first_token_symbol
+                    );
                     break;
                 }
             }
@@ -192,13 +211,37 @@ fn main() {
         println!();
         for block in &mem.blocks {
             for variable in &block.variables {
-                println!("Block {}: Variable {}, at address 0x{:04X}", block.name, variable.name, variable.address);
+                println!(
+                    "Block {}: Variable {}, at address 0x{:04X}",
+                    block.name, variable.name, variable.address
+                );
             }
         }
     }
 
+    // ======== ROM writing ========
+    let mut out_file = std::fs::File::create(out_path).unwrap();
+
+    mem.data.resize(file_size, 0);
+
+    for block in &mem.blocks {
+        for variable in &block.variables {
+            for idx in 0..variable.value.len() {
+                mem.data[variable.address + idx] = variable.value[idx];
+            }
+        }
+        for idx in 0..block.data.len() {
+            mem.data[block.address + idx] = block.data[idx];
+        }
+    }
+
+    let bytes_written = out_file.write(&mem.data).unwrap();
+    println!("{} Bytes written", bytes_written);
+
     if live_edit {
         println!("\nLive Edit\n");
+        let file_data = std::fs::read(out_path).unwrap();
+        println!("Read {}B", file_data.len());
 
         loop {
             let mut buf = String::new();
@@ -212,15 +255,60 @@ fn main() {
                     "variables" => {
                         for block in &mem.blocks {
                             for variable in &block.variables {
-                                println!("  \x1b[38;2;100;100;100mBlock {}: Variable {}, at address 0x{:04X}\x1b[m", block.name, variable.name, variable.address);
+                                println!(
+                                    "  \x1b[38;2;100;100;100mat \x1b[38;2;150;100;150m0x{:08X}\x1b[38;2;100;100;100m in Block '\x1b[38;2;150;150;100m{}\x1b[38;2;100;100;100m': Variable '\x1b[38;2;100;150;150m{}\x1b[38;2;100;100;100m'\x1b[m",
+                                    variable.address, block.name, variable.name
+                                );
                             }
                         }
-                    },
-                    _ => println!("Invalid argument: {}", input[1])
+                    }
+                    _ => println!("Invalid argument: {}", input[1]),
                 },
                 "exit" => break,
                 _ => println!("Invalid command"),
             }
         }
     }
+}
+
+fn evaluate_value(src: &Vec<&str>, idx: usize) -> Result<Vec<u8>, AssembleError> {
+    let mut bytes: Vec<u8>;
+    let len;
+    match src[idx].split_at(1).0 {
+        "$" => {
+            bytes = usize::from_str_radix(src[idx].trim_matches('$'), 16)
+                .unwrap()
+                .to_le_bytes()
+                .to_vec();
+            len = bytes.iter().rposition(|&b| b != 0).map_or(1, |i| i + 1);
+        }
+        "#" => {
+            bytes = usize::from_str_radix(src[idx].trim_matches('#'), 10)
+                .unwrap()
+                .to_le_bytes()
+                .to_vec();
+            len = bytes.iter().rposition(|&b| b != 0).map_or(1, |i| i + 1);
+        }
+        "\"" => {
+            bytes = Vec::new();
+            for token in &src[idx..] {
+                for c in token.trim_matches('"').chars() {
+                    bytes.push(c as u8);
+                }
+                if !token.ends_with("\"") {
+                    bytes.push(b' ');
+                }
+            }
+            bytes.push(b'\0');
+            len = bytes.len()
+        }
+        _ => return Err(AssembleError::InvalidSyntax),
+    }
+    return Ok(bytes[..len].to_vec());
+}
+
+fn bytes_to_usize(slice: &[u8]) -> usize {
+    let mut buf = [0u8; 8];
+    buf[..slice.len()].copy_from_slice(slice);
+    usize::from_le_bytes(buf)
 }

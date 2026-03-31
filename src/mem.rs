@@ -1,5 +1,5 @@
 pub struct Memory {
-    pub data: Vec<u8>,
+    pub data: Box<Vec<u8>>,
     pub labels: Vec<Label>,
     pub blocks: Vec<Block>,
     pub block_tracker: usize,

@@ -1,4 +1,6 @@
->CFG bit-width 8
+>CFG bit-width #8
+>CFG file-size $10000
+>CFG reset-vector $FFFFFC
 >PRG
 
 @BLK mmio $3000

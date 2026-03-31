@@ -64,7 +64,7 @@ pub fn assemble(
                 mem.blocks[mem.block_tracker].variables.push(variable);
             },
             "@END" => {},
-            _ => return Err(err::AssembleError::InvalidToken),
+            _ => return Err(AssembleError::InvalidToken),
         },
         "#" => match tokens[0] {
             "#PSH" => {
@@ -95,11 +95,15 @@ pub fn assemble(
                         Err(err) => return Err(err),
                     }
                 };
+                mem.blocks[mem.block_tracker].data.push(OpCodes::JUMP_IMM as u8);
+                for byte in address {
+                    mem.blocks[mem.block_tracker].data.push(byte);
+                }
             },
             "#RTR" => {},
             "#BRA" => {},
             "#HLT" => {},
-            _ => return Err(err::AssembleError::InvalidToken),
+            _ => return Err(AssembleError::InvalidToken),
         },
         _ => match tokens[1] {
             "->" => {
@@ -116,7 +120,7 @@ pub fn assemble(
                     "\x1b[38;2;255;50;0mError: Invalid Token: \x1b[38;2;127;255;200m{}\x1b[0m",
                     first_token_symbol
                 );
-                return Err(err::AssembleError::InvalidSyntax);
+                return Err(AssembleError::InvalidSyntax);
             }
         },
     }
@@ -129,7 +133,7 @@ fn get_register_index(src: &str) -> Result<usize, crate::err::AssembleError> {
         let register = usize::from_str_radix(src.split(':').last().unwrap(), 10).unwrap();
         Ok(register)
     } else {
-        return Err(crate::err::AssembleError::InvalidSyntax);
+        return Err(AssembleError::InvalidSyntax);
     }
 }
 
@@ -148,15 +152,17 @@ fn evaluate_value(src: &Vec<&str>, idx: usize) -> Result<Vec<u8>, AssembleError>
         "\"" => {
             bytes = Vec::new();
             for token in &src[idx..] {
-                let token = token.trim_matches('"');
-                for c in token.chars() {
+                for c in token.trim_matches('"').chars() {
                     bytes.push(c as u8);
+                }
+                if !token.ends_with("\"") {
+                    bytes.push(b' ');
                 }
             }
             bytes.push(b'\0');
             len = bytes.len()
         }
-        _ => return Err(err::AssembleError::InvalidSyntax),
+        _ => return Err(AssembleError::InvalidSyntax),
     }
     return Ok(bytes[..len].to_vec());
 }
@@ -167,7 +173,9 @@ fn handle_identifier(src: &str, mem: &Memory) -> Result<Vec<u8>, AssembleError> 
         if block.name == split[0] {
             for label in &block.labels {
                 if label.name == split[1] {
-                    return Ok(label.address.to_le_bytes().to_vec());
+                    let address = label.address.to_le_bytes().to_vec();
+                    let len = address.iter().rposition(|&b| b != 0).map_or(1, |i| i + 1);
+                    return Ok(address[..len].to_vec());
                 }
             }
         }
