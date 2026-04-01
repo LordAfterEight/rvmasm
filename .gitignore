@@ -1,7 +1,6 @@
 zig-out
 .zig-cache
-ROM.bin
-
+*.bin
 
 # Added by cargo
 

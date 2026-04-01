@@ -61,6 +61,7 @@ pub fn assemble(
                     value: value,
                 };
                 mem.mem_ptr += variable.length;
+                mem.blocks[mem.block_tracker].length += variable.length;
                 mem.blocks[mem.block_tracker].variables.push(variable);
             },
             "@END" => {},

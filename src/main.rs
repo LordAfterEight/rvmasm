@@ -94,6 +94,7 @@ fn main() {
         let tokens: Vec<&str> = line.split_whitespace().filter(|t| !t.is_empty()).collect();
 
         if line.is_empty() || tokens[0] == "//" {
+            println!();
             continue;
         }
 
@@ -261,8 +262,85 @@ fn main() {
                                 );
                             }
                         }
+                    },
+                    "blocks" => {
+                        for block in &mem.blocks {
+                            println!("\nBlock: \x1b[38;2;150;150;100m{}\x1b[m", block.name);
+                            let mut byte_printed = false;
+                            for addr in block.address..block.address+block.length {
+                                print!(" \x1b[38;2;150;100;150m0x{:08X}: ", addr);
+                                for variable in block.variables.iter() {
+                                    if addr == variable.address {
+                                        println!(" \x1b[38;2;150;200;50m{:02X}\x1b[m ", file_data[addr]);
+                                        byte_printed = true;
+                                    }
+                                }
+                                if byte_printed == false {
+                                    if file_data[addr] != 0 {
+                                        println!(" \x1b[38;2;200;150;50m{:02X}\x1b[m ", file_data[addr]);
+                                    } else {
+                                        println!(" \x1b[38;2;100;100;100m{:02X}\x1b[m ", file_data[addr]);
+                                    }
+                                }
+                                byte_printed = false;
+                            }
+                            println!();
+                        }
                     }
                     _ => println!("Invalid argument: {}", input[1]),
+                },
+                "dump" => {
+                    if input.len() == 1 {
+                        let mut x_idx = 0;
+                        let mut byte_printed = false;
+                        let mut found_variables = Vec::new();
+                        for addr in (0..file_data.len()).step_by(16) {
+                            for sub_addr in 0..16 {
+                                if x_idx == 0 {
+                                    print!(" \x1b[38;2;150;100;150m0x{:08X} - 0x{:08X}: ", addr, addr + 15);
+                                }
+                                for block in &mem.blocks {
+                                    for variable in block.variables.iter() {
+                                        if addr + sub_addr == variable.address {
+                                            print!(" \x1b[38;2;150;200;50m{:02X}\x1b[m ", file_data[addr+ sub_addr]);
+                                            found_variables.push(variable);
+                                            byte_printed = true;
+                                        }
+                                    }
+                                }
+                                if byte_printed == false {
+                                    if file_data[addr + sub_addr] != 0 {
+                                        print!(" \x1b[38;2;200;150;50m{:02X}\x1b[m ", file_data[addr + sub_addr]);
+                                    } else {
+                                        print!(" \x1b[38;2;100;100;100m{:02X}\x1b[m ", file_data[addr + sub_addr]);
+                                    }
+                                }
+                                byte_printed = false;
+                                x_idx += 1;
+                                if x_idx == 8 {
+                                    print!(" \x1b[38;2;100;100;100m|\x1b[m ");
+                                }
+
+                                if x_idx == 16 {
+                                    if found_variables.len() != 0 {
+                                        for variable in &found_variables {
+                                            print!(" {}:0x{:08X} ", variable.name, variable.address);
+                                        }
+                                        found_variables.clear();
+                                    }
+
+                                    x_idx = 0;
+                                    println!();
+                                }
+                            }
+                        }
+                    } else {
+                        match input[1] {
+                            "non-null" => {
+                            }
+                            _ => println!("Invalid option: {}", input[1])
+                        }
+                    }
                 },
                 "exit" => break,
                 _ => println!("Invalid command"),
