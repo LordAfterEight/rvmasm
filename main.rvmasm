@@ -1,4 +1,5 @@
 >CFG bit-width #8
+>CFG addr-width #3
 >CFG file-size $10000
 >CFG reset-vector $FFFFFC
 >PRG
@@ -20,12 +21,10 @@
             reg:0 <- *(reg:2 + reg:1)
             reg:0 -> mmio.serial_port
             reg:1 <- reg:1 + $1
-            #JMP functions.loop ? reg:0 != $0
-        @END
+            #JMP loop ? reg:0 != $0
         #POP reg:1
         #POP reg:0
         #RTR pop
-    @END
 
 @BLK start $4000
     reg:2 <- &data.msg

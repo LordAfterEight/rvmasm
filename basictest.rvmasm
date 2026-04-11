@@ -1,0 +1,11 @@
+>CFG bit-width #8
+>CFG addr-width #2
+>CFG reset-vector $8000
+>CFG file-size $100
+
+>PRG
+
+@BLK start $10
+    @LBL loop
+    #JMP loop
+    #JMP $5000

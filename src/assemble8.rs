@@ -10,6 +10,8 @@ pub fn assemble(
     tokens: Vec<&str>,
     mem: &mut Memory,
     logging: &LoggingVerbosity,
+    bit_width: u8,
+    addr_width: u8,
 ) -> Result<(), err::AssembleError> {
     let first_token_symbol = tokens[0].split_at(1).0;
 
@@ -19,12 +21,9 @@ pub fn assemble(
                 mem.mem_ptr = usize::from_str_radix(tokens[1].trim_matches('$'), 16).unwrap();
             }
             "@LBL" => {
-                mem.blocks[mem.block_tracker].labels.push(Label::new(tokens[1], mem.mem_ptr));
+                mem.blocks.last_mut().unwrap().labels.push(Label::new(tokens[1], mem.mem_ptr));
             }
             "@BLK" => {
-                if !mem.blocks.is_empty() {
-                    mem.block_tracker += 1;
-                }
                 let address = usize::from_str_radix(tokens[2].trim_matches('$'), 16).unwrap();
                 mem.blocks.push(Block {
                     name: tokens[1].to_string(),
@@ -41,7 +40,7 @@ pub fn assemble(
                 );
             }
             "@VAR" => {
-                let value = match evaluate_value(&tokens, 2) {
+                let (value, vartype) = match evaluate_value(&tokens, 2, 0) {
                     Ok(val) => val,
                     Err(err) => return Err(err)
                 };
@@ -59,10 +58,12 @@ pub fn assemble(
                     address: mem.mem_ptr,
                     length: value.len(),
                     value: value,
+                    vartype: vartype,
                 };
                 mem.mem_ptr += variable.length;
-                mem.blocks[mem.block_tracker].length += variable.length;
-                mem.blocks[mem.block_tracker].variables.push(variable);
+                let block = mem.blocks.last_mut().unwrap();
+                block.length += variable.length;
+                block.variables.push(variable);
             },
             "@END" => {},
             _ => return Err(AssembleError::InvalidToken),
@@ -74,8 +75,9 @@ pub fn assemble(
                     Err(err) => return Err(err)
                 };
 
-                mem.blocks[mem.block_tracker].data.push(OpCodes::PUSH_RGST as u8);
-                mem.blocks[mem.block_tracker].data.push(register as u8);
+                let block = mem.blocks.last_mut().unwrap();
+                block.data.push(OpCodes::PUSH_RGST as u8);
+                block.data.push(register as u8);
                 log(&format!("Push register {} to stack", register), logging);
             },
             "#POP" => {
@@ -84,26 +86,43 @@ pub fn assemble(
                     Err(err) => return Err(err)
                 };
 
-                mem.blocks[mem.block_tracker].data.push(OpCodes::POP_RGST as u8);
-                mem.blocks[mem.block_tracker].data.push(register as u8);
+                let block = mem.blocks.last_mut().unwrap();
+                block.data.push(OpCodes::POP_RGST as u8);
+                block.data.push(register as u8);
                 log(&format!("Pop value from stack to register {}", register), logging);
             },
             "#JMP" => {
-                let address = match evaluate_value(&tokens, 1) {
+                let address = match get_address(&tokens, 1, &mem, addr_width) {
                     Ok(val) => val,
-                    Err(_) => match handle_identifier(tokens[1], &mem) {
-                        Ok(val) => val,
-                        Err(err) => return Err(err),
-                    }
+                    Err(err) => return Err(err),
                 };
-                mem.blocks[mem.block_tracker].data.push(OpCodes::JUMP_IMM as u8);
+                let block = mem.blocks.last_mut().unwrap();
+                block.data.push(OpCodes::JUMP_IMM as u8);
                 for byte in address {
-                    mem.blocks[mem.block_tracker].data.push(byte);
+                    block.data.push(byte);
                 }
             },
-            "#RTR" => {},
-            "#BRA" => {},
-            "#HLT" => {},
+            "#RTR" => {
+                let block = mem.blocks.last_mut().unwrap();
+                block.data.push(OpCodes::RTRN as u8);
+                block.length += 1;
+            },
+            "#BRA" => {
+                let address = match get_address(&tokens, 1, &mem, addr_width) {
+                    Ok(val) => val,
+                    Err(err) => return Err(err),
+                };
+                let block = mem.blocks.last_mut().unwrap();
+                block.data.push(OpCodes::BRAN_IMM as u8);
+                for byte in address {
+                    block.data.push(byte);
+                }
+            },
+            "#HLT" => {
+                let block = mem.blocks.last_mut().unwrap();
+                block.data.push(OpCodes::HALT as u8);
+                block.length += 1;
+            },
             _ => return Err(AssembleError::InvalidToken),
         },
         _ => match tokens[1] {
@@ -130,7 +149,6 @@ pub fn assemble(
 
 fn get_register_index(src: &str) -> Result<usize, crate::err::AssembleError> {
     if src.contains("reg:") {
-        #[allow(unused)]
         let register = usize::from_str_radix(src.split(':').last().unwrap(), 10).unwrap();
         Ok(register)
     } else {
@@ -138,17 +156,28 @@ fn get_register_index(src: &str) -> Result<usize, crate::err::AssembleError> {
     }
 }
 
-fn evaluate_value(src: &Vec<&str>, idx: usize) -> Result<Vec<u8>, AssembleError> {
+fn evaluate_value(src: &Vec<&str>, idx: usize, bit_width: u8) -> Result<(Vec<u8>, VariableType), AssembleError> {
     let mut bytes: Vec<u8>;
+    let vartype;
     let len;
     match src[idx].split_at(1).0 {
         "$"  => {
-            bytes = usize::from_str_radix(src[idx].trim_matches('$'), 16).unwrap().to_le_bytes().to_vec();
+            let raw = usize::from_str_radix(src[idx].trim_matches('$'), 16).unwrap();
+            if bit_width > 0 && bit_width < 64 && raw >= (1usize << bit_width) {
+                return Err(AssembleError::InvalidValueWidth);
+            }
+            bytes = raw.to_le_bytes().to_vec();
             len = bytes.iter().rposition(|&b| b != 0).map_or(1, |i| i + 1);
+            vartype = VariableType::Integer;
         },
         "#"  => {
-            bytes = usize::from_str_radix(src[idx].trim_matches('#'), 10).unwrap().to_le_bytes().to_vec();
+            let raw = usize::from_str_radix(src[idx].trim_matches('#'), 10).unwrap();
+            if bit_width > 0 && bit_width < 64 && raw >= (1usize << bit_width) {
+                return Err(AssembleError::InvalidValueWidth);
+            }
+            bytes = raw.to_le_bytes().to_vec();
             len = bytes.iter().rposition(|&b| b != 0).map_or(1, |i| i + 1);
+            vartype = VariableType::Integer;
         },
         "\"" => {
             bytes = Vec::new();
@@ -161,25 +190,68 @@ fn evaluate_value(src: &Vec<&str>, idx: usize) -> Result<Vec<u8>, AssembleError>
                 }
             }
             bytes.push(b'\0');
-            len = bytes.len()
+            vartype = VariableType::String;
+            len = bytes.len();
         }
         _ => return Err(AssembleError::InvalidSyntax),
     }
-    return Ok(bytes[..len].to_vec());
+    return Ok((bytes[..len].to_vec(), vartype));
 }
 
-fn handle_identifier(src: &str, mem: &Memory) -> Result<Vec<u8>, AssembleError> {
-    let split: Vec<&str> = src.split('.').collect();
-    for block in &mem.blocks {
-        if block.name == split[0] {
-            for label in &block.labels {
-                if label.name == split[1] {
-                    let address = label.address.to_le_bytes().to_vec();
-                    let len = address.iter().rposition(|&b| b != 0).map_or(1, |i| i + 1);
-                    return Ok(address[..len].to_vec());
+fn handle_identifier(src: &str, mem: &Memory, addr_width: u8) -> Result<Vec<u8>, AssembleError> {
+    let addr_to_bytes = |address: usize| -> Result<Vec<u8>, AssembleError> {
+        let raw = address.to_le_bytes();
+        for i in (addr_width as usize)..8 {
+            if raw[i] != 0 {
+                return Err(AssembleError::InvalidValueWidth);
+            }
+        }
+        Ok(raw[..addr_width as usize].to_vec())
+    };
+
+    if src.contains(".") {
+        let split: Vec<&str> = src.split('.').collect();
+        for block in &mem.blocks {
+            if block.name == split[0] {
+                for label in &block.labels {
+                    if label.name == split[1] {
+                        return addr_to_bytes(label.address);
+                    }
                 }
             }
         }
+        return Err(AssembleError::NoSuchLabel(src.to_string()))
+    } else {
+        for label in &mem.blocks.last().unwrap().labels {
+            if label.name == src {
+                return addr_to_bytes(label.address);
+            }
+        }
+        return Err(AssembleError::NoSuchLabelInScope(src.to_string()))
     }
-    Err(AssembleError::InvalidIdentifier)
+}
+
+fn get_address(src: &Vec<&str>, idx: usize, mem: &Memory, addr_width: u8) -> Result<Vec<u8>, AssembleError> {
+    match evaluate_value(src, idx, (addr_width as u16 * 8) as u8) {
+        Ok((bytes, _)) => pad_to_width(bytes, addr_width as usize),
+        Err(AssembleError::InvalidSyntax) => handle_identifier(src[idx], mem, addr_width),
+        Err(err) => Err(err),
+    }
+}
+
+fn pad_to_width(mut bytes: Vec<u8>, width: usize) -> Result<Vec<u8>, AssembleError> {
+    if bytes.len() > width {
+        return Err(AssembleError::InvalidValueWidth);
+    }
+    bytes.resize(width, 0);
+    Ok(bytes)
+}
+
+fn check_condition_presence(src: Vec<&str>) -> bool {
+    for token in src {
+        if token == "?" {
+            return true
+        }
+    }
+    false
 }

@@ -13,7 +13,7 @@ use crate::mem::Memory;
 
 fn main() {
     let mut src_path: &str = "main.rvmasm";
-    let mut out_path: &str = "ROM.bin";
+    let mut out_path: &str = "ROM.rvm";
     let mut src_path_provided = false;
     let mut logging = LoggingVerbosity::None;
     let mut live_edit = false;
@@ -86,6 +86,7 @@ fn main() {
 
     let content = std::str::from_utf8(&buf).unwrap_or("");
     let mut bit_width = 0;
+    let mut addr_width = 0;
 
     for line in content.split('\n') {
         line_counter += 1;
@@ -131,6 +132,13 @@ fn main() {
                             reset_vector = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
                             logging::log(
                                 &format!("Setting reset vector to {:08X}", reset_vector),
+                                &logging,
+                            );
+                        }
+                        "addr-width" => {
+                            addr_width = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
+                            logging::log(
+                                &format!("Setting address width to {} byte{}", addr_width, if addr_width != 1 { "s" } else { "" }),
                                 &logging,
                             );
                         }
@@ -183,13 +191,17 @@ fn main() {
                     break;
                 }
             }
+            if addr_width == 0 {
+                eprintln!("\x1b[38;2;255;50;0mError: Address width needs to be defined\x1b");
+                std::process::exit(1);
+            }
         } else {
             match bit_width {
                 0 => {
                     eprintln!("\x1b[38;2;255;50;0mError: Bit width needs to be defined\x1b");
                     break;
                 }
-                8 => match assemble8::assemble(tokens, &mut mem, &logging, bit_width as u8) {
+                8 => match assemble8::assemble(tokens, &mut mem, &logging, bit_width as u8, addr_width as u8) {
                     Ok(_) => continue,
                     Err(err) => {
                         eprintln!("\x1b[38;2;255;50;0mError: {:?}\x1b", err);
@@ -234,6 +246,13 @@ fn main() {
             mem.data[block.address + idx] = block.data[idx];
         }
     }
+
+    // ======== RVM Header ========
+    mem.data[0] = b'R';
+    mem.data[1] = b'V';
+    mem.data[2] = b'M';
+    mem.data[3] = bit_width as u8;
+    mem.data[4] = addr_width as u8;
 
     let bytes_written = out_file.write(&mem.data).unwrap();
     println!("{} Bytes written", bytes_written);
@@ -347,6 +366,29 @@ fn main() {
                             }
                             _ => println!("Invalid option: {}", input[1])
                         }
+                    }
+                },
+                "header" => {
+                    let magic = [file_data[0], file_data[1], file_data[2]];
+                    let valid = &magic == b"RVM";
+                    println!(
+                        "  \x1b[38;2;100;100;100mMagic:      \x1b[38;2;{}m{}\x1b[m",
+                        if valid { "100;200;100" } else { "255;50;0" },
+                        std::str::from_utf8(&magic).unwrap_or("???")
+                    );
+                    if valid {
+                        println!(
+                            "  \x1b[38;2;100;100;100mBit Width:  \x1b[38;2;150;200;255m{}\x1b[38;2;100;100;100m bit{}\x1b[m",
+                            file_data[3],
+                            if file_data[3] != 1 { "s" } else { "" }
+                        );
+                        println!(
+                            "  \x1b[38;2;100;100;100mAddr Width: \x1b[38;2;150;200;255m{}\x1b[38;2;100;100;100m byte{}\x1b[m",
+                            file_data[4],
+                            if file_data[4] != 1 { "s" } else { "" }
+                        );
+                    } else {
+                        println!("  \x1b[38;2;255;50;0mNot a valid RVM file\x1b[m");
                     }
                 },
                 "exit" => break,

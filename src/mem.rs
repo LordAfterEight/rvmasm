@@ -2,7 +2,6 @@ pub struct Memory {
     pub data: Box<Vec<u8>>,
     pub labels: Vec<Label>,
     pub blocks: Vec<Block>,
-    pub block_tracker: usize,
     pub mem_ptr: usize,
 }
 
@@ -11,11 +10,18 @@ pub struct Label {
     pub address: usize,
 }
 
+pub enum VariableType {
+    Integer,
+    String,
+    None,
+}
+
 pub struct Variable {
     pub name: String,
     pub address: usize,
     pub length: usize,
     pub value: Vec<u8>,
+    pub vartype: VariableType,
 }
 
 pub struct Block {
