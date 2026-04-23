@@ -2,11 +2,11 @@
 #[allow(non_camel_case_types, dead_code)]
 pub enum OpCodes {
     /// OP - xxx
-    NOOP = 0x00,
+    NOOP = 0xF3,
 
     /// OP(7) - RDE(5) - IMM(20)
     /// Loads an immediate 20-bit value to register RDE.
-    LOAD_IMM = 0x01,
+    LOAD_IMM = 0xA0,
 
     /// OP(7) - RDE(5) - IMM(20)
     /// Loads an immediate 20-bit value to the upper 20 bits of register RDE.
@@ -14,7 +14,7 @@ pub enum OpCodes {
 
     /// OP(7) - RS1(5) - IMM(20)
     /// Writes the value of register RS1 to the immediate 20-bit address.
-    STOR_IMM = 0x03,
+    STOR_IMM = 0xA1,
 
     /// OP(7) - RDE(5) - RS1(5) - xxx
     /// Loads a byte from the address stored in register RS1 to RDE.
@@ -32,27 +32,27 @@ pub enum OpCodes {
     /// Writes the value from register RS1 to the address stored in register RS2.
     STOR_WORD = 0x07,
 
-    PUSH_RGST = 0x08,
+    PUSH_RGST = 0xD0,
 
-    POP_RGST  = 0x09,
+    POP_RGST  = 0xD1,
 
     /// OP(7) - IMM(25)
     /// Unconditionally jumps to the immediate 25-bit address.
-    JUMP_IMM = 0x10,
+    JUMP_IMM = 0xB0,
 
     /// OP(7) - RS1(5) - xxx
     /// Unconditionally jumps to the address stored in register RS1.
-    JUMP_REG = 0x11,
+    JUMP_REG = 0xB1,
 
     /// OP(7) - IMM(25)
     /// Unconditionally branches to the immediate 25-bit address. Writes the current position
     /// to the address the stack pointer is pointing to before jumping.
-    BRAN_IMM = 0x12,
+    BRAN_IMM = 0xB2,
 
     /// OP(7) - RS1(5) - xxx
     /// Unconditionally branches to the address stored in register RS1. Writes the current position
     /// to the address the stack pointer is pointing to before jumping.
-    BRAN_REG = 0x13,
+    BRAN_REG = 0xB3,
 
     /// OP(7) - RS1(5) - RS2(5) - RS3(5)
     /// Compares registers RS1 and RS2, jumps to the address stored in register RS3 if equal.
@@ -75,32 +75,32 @@ pub enum OpCodes {
 
     /// OP(7) - RDE(5) - RS1(5) - RS2(5) - xxx
     /// Adds the contents of registers RS1 and RS2 and stores the result in register RDE.
-    ADD = 0x20,
+    ADD = 0xC0,
 
     /// OP(7) - RDE(5) - RS1(5) - RS2(5) - xxx
     /// Subtracts the contents of registers RS1 and RS2 and stores the result in register RDE.
-    SUB = 0x21,
+    SUB = 0xC1,
 
     /// OP(7) - RDE(5) - RS1(5) - RS2(5) - xxx
     /// ANDs the content of register RS1 and RS2, storing the result to register RDE.
-    AND = 0x24,
+    AND = 0xC3,
 
     /// OP(7) - RDE(5) - RS1(5) - RS2(5) - xxx
     /// ORs the content of register RS1 and RS2, storing the result to register RDE.
-    ORR = 0x25,
+    ORR = 0xC5,
 
     /// OP(7) - RDE(5) - IMM(20)
     /// ORs the content of register RDE with the 20-bit immediate value.
-    ORI = 0x26,
+    ORI = 0xC4,
 
     /// OP(7) - RDE(5) - RS1(5) - RS2(5) - xxx
     /// XORs the content of register RS1 and RS2, storing the result to register RDE.
-    XOR = 0x27,
+    XOR = 0xC6,
 
     /// OP(7) - xxx
     /// Used to return from a branch to the previous position. Reads the last value from the
     /// "stack" and sets the program counter to it.
-    RTRN = 0x3E,
+    RTRN = 0xB4,
 
     /// OP(7) - xxx
     /// Used to return from a branch to the previous position. Pops the last value from the
@@ -111,15 +111,15 @@ pub enum OpCodes {
     /// OP(7) - xxx
     /// Makes the core jump to its reset vector, reading the value stored inside and sets the
     /// program counter to it.
-    RSET_SOFT = 0x40,
+    RSET_SOFT = 0xF0,
 
     /// OP(7) - xxx
     /// Makes the core jump to its reset vector, reading the value stored inside and sets the
     /// program counter to it. Resets all registers.
-    RSET_HARD = 0x41,
+    RSET_HARD = 0xF1,
 
     /// OP(7) - xxx
-    HALT = 0x4F,
+    HALT = 0xF2,
 
     /// OP(7) - core_index(5) - type(5)
     /// Sends an interrupt to the core specified by core_index. The type of interrupt is determined
