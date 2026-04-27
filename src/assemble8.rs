@@ -32,6 +32,7 @@ pub fn assemble(
                     address: address,
                     length: 0,
                     data: Vec::new(),
+                    instruction_offsets: Vec::new(),
                 });
                 mem.mem_ptr = address;
                 log(
@@ -76,6 +77,7 @@ pub fn assemble(
                 };
 
                 let block = mem.blocks.last_mut().unwrap();
+                block.instruction_offsets.push(block.data.len());
                 block.data.push(OpCodes::PUSH_RGST as u8);
                 block.data.push(register as u8);
                 log(&format!("Push register {} to stack", register), logging);
@@ -87,6 +89,7 @@ pub fn assemble(
                 };
 
                 let block = mem.blocks.last_mut().unwrap();
+                block.instruction_offsets.push(block.data.len());
                 block.data.push(OpCodes::POP_RGST as u8);
                 block.data.push(register as u8);
                 log(&format!("Pop value from stack to register {}", register), logging);
@@ -97,6 +100,7 @@ pub fn assemble(
                     Err(err) => return Err(err),
                 };
                 let block = mem.blocks.last_mut().unwrap();
+                block.instruction_offsets.push(block.data.len());
                 block.data.push(OpCodes::JUMP_IMM as u8);
                 for byte in address {
                     block.data.push(byte);
@@ -104,6 +108,7 @@ pub fn assemble(
             },
             "#RTR" => {
                 let block = mem.blocks.last_mut().unwrap();
+                block.instruction_offsets.push(block.data.len());
                 block.data.push(OpCodes::RTRN as u8);
                 block.length += 1;
             },
@@ -113,6 +118,7 @@ pub fn assemble(
                     Err(err) => return Err(err),
                 };
                 let block = mem.blocks.last_mut().unwrap();
+                block.instruction_offsets.push(block.data.len());
                 block.data.push(OpCodes::BRAN_IMM as u8);
                 for byte in address {
                     block.data.push(byte);
@@ -120,6 +126,7 @@ pub fn assemble(
             },
             "#HLT" => {
                 let block = mem.blocks.last_mut().unwrap();
+                block.instruction_offsets.push(block.data.len());
                 block.data.push(OpCodes::HALT as u8);
                 block.length += 1;
             },

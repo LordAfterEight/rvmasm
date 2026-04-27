@@ -1,7 +1,5 @@
 >CFG bit-width #8
->CFG addr-width #3
->CFG file-size $10000
->CFG reset-vector $FFFFFC
+>CFG addr-width #2
 >PRG
 
 @BLK mmio $3000

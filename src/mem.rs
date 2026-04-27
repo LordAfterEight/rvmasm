@@ -31,6 +31,7 @@ pub struct Block {
     pub address: usize,
     pub length: usize,
     pub data: Vec<u8>,
+    pub instruction_offsets: Vec<usize>,
 }
 
 impl Label {

@@ -1,8 +1,8 @@
 [package]
 name = "rvmasm"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2024"
 description = "Assembler for my custom RVM architecture"
-website = "https://github.com/LordAfterEight/RvmASM"
+repository = "https://github.com/LordAfterEight/RvmASM"
 documentation = "https://docs.rs/rvmasm"
 license = "MIT"

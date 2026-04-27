@@ -1,7 +1,5 @@
 zig-out
 .zig-cache
 *.rvm
-
-# Added by cargo
-
+*.rvmasm
 /target

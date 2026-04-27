@@ -10,6 +10,7 @@ use std::io::Write;
 use crate::err::AssembleError;
 use crate::logging::LoggingVerbosity;
 use crate::mem::Memory;
+use crate::opcodes::{OpCodes, OperandKind};
 
 fn main() {
     let mut src_path: &str = "main.rvmasm";
@@ -70,8 +71,6 @@ fn main() {
 
     let mut line_counter = 0;
     let mut assemble_now = false;
-    let mut file_size = 0;
-    let mut reset_vector;
     eprint!("\n");
 
     // ======== Memory Init ========
@@ -120,20 +119,6 @@ fn main() {
                                 &logging,
                             );
                             continue;
-                        }
-                        "file-size" => {
-                            file_size = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
-                            logging::log(
-                                &format!("Setting output file size to {}B", file_size),
-                                &logging,
-                            );
-                        }
-                        "reset-vector" => {
-                            reset_vector = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
-                            logging::log(
-                                &format!("Setting reset vector to {:08X}", reset_vector),
-                                &logging,
-                            );
                         }
                         "addr-width" => {
                             addr_width = bytes_to_usize(&evaluate_value(&tokens, 2).unwrap());
@@ -231,30 +216,62 @@ fn main() {
         }
     }
 
-    // ======== ROM writing ========
-    let mut out_file = std::fs::File::create(out_path).unwrap();
-
-    mem.data.resize(file_size, 0);
-
-    for block in &mem.blocks {
+    // ======== Bake variables into block data ========
+    for block in &mut mem.blocks {
+        // Ensure block.data is large enough to hold variables
         for variable in &block.variables {
-            for idx in 0..variable.value.len() {
-                mem.data[variable.address + idx] = variable.value[idx];
+            let rel_addr = variable.address - block.address;
+            let end = rel_addr + variable.value.len();
+            if end > block.data.len() {
+                block.data.resize(end, 0);
             }
         }
-        for idx in 0..block.data.len() {
-            mem.data[block.address + idx] = block.data[idx];
+        for variable in &block.variables {
+            let rel_addr = variable.address - block.address;
+            for idx in 0..variable.value.len() {
+                block.data[rel_addr + idx] = variable.value[idx];
+            }
         }
+        // Update block length to match data
+        block.length = block.data.len();
     }
 
-    // ======== RVM Header ========
-    mem.data[0] = b'R';
-    mem.data[1] = b'V';
-    mem.data[2] = b'M';
-    mem.data[3] = bit_width as u8;
-    mem.data[4] = addr_width as u8;
+    // ======== Resolve reset vector ========
+    let reset_vector = mem
+        .blocks
+        .iter()
+        .find(|b| b.name == "start")
+        .map(|b| b.address)
+        .unwrap_or_else(|| {
+            eprintln!("\x1b[38;2;255;50;0mError: No block named 'start' found for reset vector\x1b[0m");
+            std::process::exit(1);
+        });
 
-    let bytes_written = out_file.write(&mem.data).unwrap();
+    // ======== Write RVM file ========
+    let mut out_file = std::fs::File::create(out_path).unwrap();
+    let mut file_data: Vec<u8> = Vec::new();
+
+    // File header
+    file_data.extend_from_slice(b"RVM");
+    file_data.push(bit_width as u8);
+    file_data.push(addr_width as u8);
+    file_data.extend_from_slice(&reset_vector.to_le_bytes()[..addr_width]);
+    file_data.extend_from_slice(&(mem.blocks.len() as u16).to_le_bytes());
+
+    // Block entries
+    for block in &mem.blocks {
+        // Block name
+        file_data.push(block.name.len() as u8);
+        file_data.extend_from_slice(block.name.as_bytes());
+        // Load address
+        file_data.extend_from_slice(&block.address.to_le_bytes()[..addr_width]);
+        // Data length
+        file_data.extend_from_slice(&block.data.len().to_le_bytes()[..addr_width]);
+        // Data
+        file_data.extend_from_slice(&block.data);
+    }
+
+    let bytes_written = out_file.write(&file_data).unwrap();
     println!("{} Bytes written", bytes_written);
 
     if live_edit {
@@ -287,24 +304,90 @@ fn main() {
                         },
                         "blocks" => {
                             for block in &mem.blocks {
-                                println!("\nBlock: \x1b[38;2;150;150;100m{}\x1b[m", block.name);
-                                let mut byte_printed = false;
-                                for addr in block.address..block.address+block.length {
-                                    print!(" \x1b[38;2;150;100;150m0x{:08X}: ", addr);
-                                    for variable in block.variables.iter() {
-                                        if addr == variable.address {
-                                            println!(" \x1b[38;2;150;200;50m{:02X}\x1b[m ", file_data[addr]);
-                                            byte_printed = true;
+                                println!(
+                                    "\nBlock: \x1b[38;2;150;150;100m{}\x1b[38;2;100;100;100m @ \x1b[38;2;150;100;150m0x{:08X}\x1b[38;2;100;100;100m ({} bytes)\x1b[m",
+                                    block.name, block.address, block.data.len()
+                                );
+                                let mut i = 0;
+                                while i < block.data.len() {
+                                    let abs_addr = block.address + i;
+
+                                    // Check if this offset is a known instruction start
+                                    if block.instruction_offsets.contains(&i) {
+                                        if let Some(op) = OpCodes::from_byte(block.data[i]) {
+                                            let size = op.instruction_size(addr_width);
+                                            let end = std::cmp::min(i + size, block.data.len());
+
+                                            // Print hex bytes
+                                            let hex: Vec<String> = block.data[i..end].iter().map(|b| format!("{:02X}", b)).collect();
+                                            let hex_str = hex.join(" ");
+
+                                            // Format operands
+                                            let operand_str = match op.operands() {
+                                                OperandKind::None => String::new(),
+                                                OperandKind::Reg => {
+                                                    if i + 1 < end { format!("reg:{}", block.data[i + 1]) } else { String::new() }
+                                                }
+                                                OperandKind::Addr => {
+                                                    let addr_bytes = &block.data[i + 1..end];
+                                                    let addr = bytes_to_usize(addr_bytes);
+                                                    format!("${:0width$X}", addr, width = addr_width * 2)
+                                                }
+                                                OperandKind::RegReg => {
+                                                    if i + 2 < end {
+                                                        format!("reg:{}, reg:{}", block.data[i + 1], block.data[i + 2])
+                                                    } else { String::new() }
+                                                }
+                                                OperandKind::RegAddr => {
+                                                    let reg = if i + 1 < end { block.data[i + 1] } else { 0 };
+                                                    let addr_bytes = &block.data[i + 2..end];
+                                                    let addr = bytes_to_usize(addr_bytes);
+                                                    format!("reg:{}, ${:0width$X}", reg, addr, width = addr_width * 2)
+                                                }
+                                                OperandKind::RegRegReg => {
+                                                    if i + 3 < end {
+                                                        format!("reg:{}, reg:{}, reg:{}", block.data[i + 1], block.data[i + 2], block.data[i + 3])
+                                                    } else { String::new() }
+                                                }
+                                            };
+
+                                            println!(
+                                                " \x1b[38;2;150;100;150m0x{:08X}:  \x1b[38;2;200;150;50m{:<width$}\x1b[38;2;100;200;255m{}\x1b[38;2;100;100;100m {}\x1b[m",
+                                                abs_addr, hex_str, op.name(), operand_str,
+                                                width = (1 + addr_width) * 3 + 2,
+                                            );
+                                            i = end;
+                                            continue;
                                         }
                                     }
-                                    if byte_printed == false {
-                                        if file_data[addr] != 0 {
-                                            println!(" \x1b[38;2;200;150;50m{:02X}\x1b[m ", file_data[addr]);
+
+                                    // Variable or other data byte
+                                    let is_var = block.variables.iter().any(|v| abs_addr >= v.address && abs_addr < v.address + v.value.len());
+                                    let var_name = block.variables.iter().find(|v| abs_addr == v.address).map(|v| v.name.as_str());
+                                    if is_var {
+                                        if let Some(name) = var_name {
+                                            println!(
+                                                " \x1b[38;2;150;100;150m0x{:08X}:  \x1b[38;2;150;200;50m{:02X}\x1b[38;2;100;100;100m           @VAR {}\x1b[m",
+                                                abs_addr, block.data[i], name
+                                            );
                                         } else {
-                                            println!(" \x1b[38;2;100;100;100m{:02X}\x1b[m ", file_data[addr]);
+                                            println!(
+                                                " \x1b[38;2;150;100;150m0x{:08X}:  \x1b[38;2;150;200;50m{:02X}\x1b[m",
+                                                abs_addr, block.data[i]
+                                            );
                                         }
+                                    } else if block.data[i] != 0 {
+                                        println!(
+                                            " \x1b[38;2;150;100;150m0x{:08X}:  \x1b[38;2;200;150;50m{:02X}\x1b[m",
+                                            abs_addr, block.data[i]
+                                        );
+                                    } else {
+                                        println!(
+                                            " \x1b[38;2;150;100;150m0x{:08X}:  \x1b[38;2;100;100;100m{:02X}\x1b[m",
+                                            abs_addr, block.data[i]
+                                        );
                                     }
-                                    byte_printed = false;
+                                    i += 1;
                                 }
                                 println!();
                             }
@@ -316,77 +399,79 @@ fn main() {
                 }
 
                 "dump" => {
-                    if input.len() == 1 {
-                        let mut x_idx = 0;
-                        let mut byte_printed = false;
-                        let mut found_variables = Vec::new();
-                        for addr in (0..file_data.len()).step_by(16) {
-                            for sub_addr in 0..16 {
-                                if x_idx == 0 {
-                                    print!(" \x1b[38;2;150;100;150m0x{:08X} - 0x{:08X}: ", addr, addr + 15);
-                                }
-                                for block in &mem.blocks {
-                                    for variable in block.variables.iter() {
-                                        if addr + sub_addr == variable.address {
-                                            print!(" \x1b[38;2;150;200;50m{:02X}\x1b[m ", file_data[addr+ sub_addr]);
-                                            found_variables.push(variable);
-                                            byte_printed = true;
-                                        }
-                                    }
-                                }
-                                if byte_printed == false {
-                                    if file_data[addr + sub_addr] != 0 {
-                                        print!(" \x1b[38;2;200;150;50m{:02X}\x1b[m ", file_data[addr + sub_addr]);
-                                    } else {
-                                        print!(" \x1b[38;2;100;100;100m{:02X}\x1b[m ", file_data[addr + sub_addr]);
-                                    }
-                                }
-                                byte_printed = false;
-                                x_idx += 1;
-                                if x_idx == 8 {
-                                    print!(" \x1b[38;2;100;100;100m|\x1b[m ");
-                                }
-
-                                if x_idx == 16 {
-                                    if found_variables.len() != 0 {
-                                        for variable in &found_variables {
-                                            print!(" {}:0x{:08X} ", variable.name, variable.address);
-                                        }
-                                        found_variables.clear();
-                                    }
-
-                                    x_idx = 0;
-                                    println!();
-                                }
+                    // Dump raw file bytes in hex
+                    let mut x_idx = 0;
+                    for addr in (0..file_data.len()).step_by(16) {
+                        let end = std::cmp::min(addr + 16, file_data.len());
+                        print!(" \x1b[38;2;150;100;150m0x{:08X}: ", addr);
+                        for i in addr..end {
+                            if file_data[i] != 0 {
+                                print!(" \x1b[38;2;200;150;50m{:02X}\x1b[m ", file_data[i]);
+                            } else {
+                                print!(" \x1b[38;2;100;100;100m{:02X}\x1b[m ", file_data[i]);
+                            }
+                            x_idx += 1;
+                            if x_idx == 8 {
+                                print!(" \x1b[38;2;100;100;100m|\x1b[m ");
+                            }
+                            if x_idx == 16 {
+                                x_idx = 0;
                             }
                         }
-                    } else {
-                        match input[1] {
-                            "non-null" => {
-                            }
-                            _ => println!("Invalid option: {}", input[1])
-                        }
+                        println!();
                     }
                 },
                 "header" => {
                     let magic = [file_data[0], file_data[1], file_data[2]];
                     let valid = &magic == b"RVM";
                     println!(
-                        "  \x1b[38;2;100;100;100mMagic:      \x1b[38;2;{}m{}\x1b[m",
+                        "  \x1b[38;2;100;100;100mMagic:        \x1b[38;2;{}m{}\x1b[m",
                         if valid { "100;200;100" } else { "255;50;0" },
                         std::str::from_utf8(&magic).unwrap_or("???")
                     );
                     if valid {
+                        let hdr_bit_width = file_data[3];
+                        let hdr_addr_width = file_data[4] as usize;
+                        let hdr_reset_vector = bytes_to_usize(&file_data[5..5 + hdr_addr_width]);
+                        let hdr_block_count = u16::from_le_bytes([file_data[5 + hdr_addr_width], file_data[6 + hdr_addr_width]]);
                         println!(
-                            "  \x1b[38;2;100;100;100mBit Width:  \x1b[38;2;150;200;255m{}\x1b[38;2;100;100;100m bit{}\x1b[m",
-                            file_data[3],
-                            if file_data[3] != 1 { "s" } else { "" }
+                            "  \x1b[38;2;100;100;100mBit Width:    \x1b[38;2;150;200;255m{}\x1b[38;2;100;100;100m bit{}\x1b[m",
+                            hdr_bit_width,
+                            if hdr_bit_width != 1 { "s" } else { "" }
                         );
                         println!(
-                            "  \x1b[38;2;100;100;100mAddr Width: \x1b[38;2;150;200;255m{}\x1b[38;2;100;100;100m byte{}\x1b[m",
-                            file_data[4],
-                            if file_data[4] != 1 { "s" } else { "" }
+                            "  \x1b[38;2;100;100;100mAddr Width:   \x1b[38;2;150;200;255m{}\x1b[38;2;100;100;100m byte{}\x1b[m",
+                            hdr_addr_width,
+                            if hdr_addr_width != 1 { "s" } else { "" }
                         );
+                        println!(
+                            "  \x1b[38;2;100;100;100mReset Vector: \x1b[38;2;150;255;150m0x{:0width$X}\x1b[m",
+                            hdr_reset_vector,
+                            width = hdr_addr_width * 2
+                        );
+                        println!(
+                            "  \x1b[38;2;100;100;100mBlocks:       \x1b[38;2;150;200;255m{}\x1b[m",
+                            hdr_block_count
+                        );
+
+                        // Parse and display block entries
+                        let mut cursor = 5 + hdr_addr_width + 2;
+                        for _ in 0..hdr_block_count {
+                            if cursor >= file_data.len() { break; }
+                            let name_len = file_data[cursor] as usize;
+                            cursor += 1;
+                            let name = std::str::from_utf8(&file_data[cursor..cursor + name_len]).unwrap_or("???");
+                            cursor += name_len;
+                            let load_addr = bytes_to_usize(&file_data[cursor..cursor + hdr_addr_width]);
+                            cursor += hdr_addr_width;
+                            let data_len = bytes_to_usize(&file_data[cursor..cursor + hdr_addr_width]);
+                            cursor += hdr_addr_width;
+                            println!(
+                                "    \x1b[38;2;150;150;100m{}\x1b[38;2;100;100;100m @ \x1b[38;2;150;100;150m0x{:0width$X}\x1b[38;2;100;100;100m ({} bytes)\x1b[m",
+                                name, load_addr, data_len, width = hdr_addr_width * 2
+                            );
+                            cursor += data_len;
+                        }
                     } else {
                         println!("  \x1b[38;2;255;50;0mNot a valid RVM file\x1b[m");
                     }
