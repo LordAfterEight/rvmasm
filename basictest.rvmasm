@@ -1,6 +1,5 @@
 >CFG bit-width #8
 >CFG addr-width #2
-
 >PRG
 
 @BLK something $4000
