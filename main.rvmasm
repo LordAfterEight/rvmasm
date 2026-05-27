@@ -1,5 +1,5 @@
 >CFG bit-width #8
->CFG addr-width #2
+>CFG addr-width #16
 >PRG
 
 @BLK mmio $3000
@@ -12,19 +12,19 @@
 
 @BLK functions $6000
     @LBL print
-        #PSH reg:0
-        #PSH reg:1
-        reg:1 <- $0
+        #PUSH reg:2
+        #PUSH reg:3
+        reg:3 <- $0
         @LBL loop
-            reg:0 <- *(reg:2 + reg:1)
-            reg:0 -> mmio.serial_port
-            reg:1 <- reg:1 + $1
-            #JMP loop ? reg:0 != $0
-        #POP reg:1
-        #POP reg:0
-        #RTR pop
+            reg:2 <- *(reg:4 + reg:3)
+            reg:2 -> mmio.serial_port
+            reg:3 <- reg:3 + $1
+            #JUMP loop ? reg:2 != $0
+        #PULL reg:3
+        #PULL reg:2
+        #RTRN pop
 
 @BLK start $4000
-    reg:2 <- &data.msg
-    #BRA functions.print
-    #HLT
+    reg:4 <- &data.msg
+    #BRAN functions.print
+    #HALT
