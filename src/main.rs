@@ -37,17 +37,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 blocks.push(block);
             },
             Some("@VAR") => {
-                // For simplicity, we just print the variable definition here
-                println!("Variable: {}, Value: {}", tokens[1], parser::parse_value(&tokens[2]).unwrap());
+                let mut var = parser::parse_value(&tokens[2]).unwrap();
+                var.name = tokens[1].clone();
+                blocks.last_mut().unwrap().add_variable(var);
             },
             _ => {},
         }
     }
 
     for block in blocks {
-        println!("Block: {}, Base: {:X}", block.name, block.base);
-        for line in block.content {
-            println!("  {}", line);
+        println!("\x1b[38;2;255;200;50mBlock:\x1b[38;2;50;255;200m {}, \x1b[38;2;255;200;50mBase: \x1b[38;2;50;150;255m0x{:X}\x1b[0m", block.name, block.base);
+        for variable in block.variables {
+            println!("  \x1b[38;2;255;255;255mvariable:\x1b[38;2;150;150;150m {}: {}", variable.name, variable);
         }
     }
     Ok(())
@@ -57,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 pub struct Block {
     pub name: String,
     pub base: u32,
-    pub content: Vec<String>,
+    pub variables: Vec<Variable>,
 }
 
 impl Block {
@@ -65,12 +66,12 @@ impl Block {
         Block {
             name,
             base: 0,
-            content: Vec::new(),
+            variables: Vec::new(),
         }
     }
 
-    pub fn add_line(&mut self, line: String) {
-        self.content.push(line);
+    pub fn add_variable(&mut self, variable: Variable) {
+        self.variables.push(variable);
     }
 }
 
@@ -89,34 +90,45 @@ impl Config {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Variable {
     pub name: String,
+    pub vartype: VariableType,
     pub value: Vec<u8>,
 }
 
 impl Variable {
-    pub fn to_u8(&self) -> Option<u8> {
-        if self.value.len() != 1 {
-            return None;
-        }
-        Some(self.value[0])
+    fn to_u8(&self) -> Option<u8> {
+        let mut buf = [0u8; 1];
+        let len = self.value.len().min(1);
+        buf[..len].copy_from_slice(&self.value[..len]);
+        Some(u8::from_le_bytes(buf))
     }
-    pub fn to_u16(&self) -> Option<u16> {
-        if self.value.len() > 2 {
-            return None;
-        }
-        Some(self.value.iter().fold(0, |acc, &b| (acc << 8) | b as u16))
+    fn to_u16(&self) -> Option<u16> {
+        let mut buf = [0u8; 2];
+        let len = self.value.len().min(2);
+        buf[..len].copy_from_slice(&self.value[..len]);
+        Some(u16::from_le_bytes(buf))
     }
-    pub fn to_u32(&self) -> Option<u32> {
-        if self.value.len() > 4 {
-            return None;
-        }
-        Some(self.value.iter().fold(0, |acc, &b| (acc << 8) | b as u32))
+    fn to_u32(&self) -> Option<u32> {
+        let mut buf = [0u8; 4];
+        let len = self.value.len().min(4);
+        buf[..len].copy_from_slice(&self.value[..len]);
+        Some(u32::from_le_bytes(buf))
     }
 }
 
 impl std::fmt::Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value.iter().map(|b| format!("0x{:02X} ", b)).collect::<Vec<_>>().join(""))
+        write!(f, "raw: {} -> meaning: {}", self.value.iter().map(|b| format!("0x{:02X} ", b)).collect::<Vec<_>>().join(""), match self.vartype {
+            VariableType::Int => self.to_u32().map(|n| format!("{}", n)).unwrap_or_else(|| "invalid int".to_string()),
+            VariableType::Str => String::from_utf8_lossy(&self.value).to_string(),
+        })
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum VariableType {
+    Int,
+    Str,
 }

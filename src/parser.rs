@@ -44,10 +44,12 @@ pub fn parse_value(s: &str) -> Result<crate::Variable, Box<dyn std::error::Error
         let n = u32::from_str_radix(&s[1..], 16)?;
         Ok(crate::Variable {
             name: String::new(),
+            vartype: crate::VariableType::Int,
             value: {
                 // strip leading zero bytes but keep at least one
-                let bytes = n.to_be_bytes();
+                let mut bytes = n.to_be_bytes();
                 let start = bytes.iter().position(|&b| b != 0).unwrap_or(3);
+                bytes[start..].reverse();
                 bytes[start..].to_vec()
             },
         })
@@ -55,15 +57,18 @@ pub fn parse_value(s: &str) -> Result<crate::Variable, Box<dyn std::error::Error
         let n = u32::from_str_radix(&s[1..], 10)?;
         Ok(crate::Variable {
             name: String::new(),
+            vartype: crate::VariableType::Int,
             value: {
-                let bytes = n.to_be_bytes();
+                let mut bytes = n.to_be_bytes();
                 let start = bytes.iter().position(|&b| b != 0).unwrap_or(3);
+                bytes[start..].reverse();
                 bytes[start..].to_vec()
             },
         })
     } else if s.starts_with("\"") && s.ends_with("\"") {
         Ok(crate::Variable {
             name: String::new(),
+            vartype: crate::VariableType::Str,
             value: {
                 let mut bytes = s[1..s.len()-1].as_bytes().to_vec();
                 bytes.push(0);
