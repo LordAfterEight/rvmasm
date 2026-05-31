@@ -1,10 +1,10 @@
->CFG bit-width #8
+>CFG bit-width #32
 >CFG addr-width #16
 
 @BLCK mmio $3000 {
-    @VAR serial_port $30
-    @VAR gpu_update_register $301555
-    @VAR PS2 $3F8
+    @VAR serial_port is $30
+    @VAR gpu_update_register is $301555
+    @VAR PS2 is $3F8
 }
 
 @BLCK data $5000 {
