@@ -20,35 +20,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for line in lines {
         let tokens = parser::tokenize_line(&line);
         match tokens.first().map(|s| s.as_str()) {
-            Some(">CFG") => {
-                match tokens[1].as_str() {
-                    "bit-width" => {
-                        config.bit_width = parser::parse_value(&tokens[2]).unwrap().to_u32().unwrap();
-                    },
-                    "addr-width" => {
-                        config.address_width = parser::parse_value(&tokens[2]).unwrap().to_u32().unwrap();
-                    },
-                    _ => println!("Unknown config: {}", tokens[1]),
+            Some(">CFG") => match tokens[1].as_str() {
+                "bit-width" => {
+                    config.bit_width = parser::parse_value(&tokens[2]).unwrap().to_u32().unwrap();
                 }
+                "addr-width" => {
+                    config.address_width =
+                        parser::parse_value(&tokens[2]).unwrap().to_u32().unwrap();
+                }
+                _ => println!("Unknown config: {}", tokens[1]),
             },
             Some("@BLK") => {
                 let mut block = Block::new(tokens[1].clone());
                 block.base = parser::parse_value(&tokens[2]).unwrap().to_u32().unwrap();
                 blocks.push(block);
-            },
+            }
             Some("@VAR") => {
                 let mut var = parser::parse_value(&tokens[2]).unwrap();
                 var.name = tokens[1].clone();
                 blocks.last_mut().unwrap().add_variable(var);
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
     for block in blocks {
-        println!("\x1b[38;2;255;200;50mBlock:\x1b[38;2;50;255;200m {}, \x1b[38;2;255;200;50mBase: \x1b[38;2;50;150;255m0x{:X}\x1b[0m", block.name, block.base);
+        println!(
+            "\x1b[38;2;255;200;50mBlock:\x1b[38;2;50;255;200m {}, \x1b[38;2;255;200;50mBase: \x1b[38;2;50;150;255m0x{:X}\x1b[0m",
+            block.name, block.base
+        );
         for variable in block.variables {
-            println!("  \x1b[38;2;255;255;255mvariable:\x1b[38;2;150;150;150m {}: {}", variable.name, variable);
+            println!(
+                "  \x1b[38;2;255;255;255mvariable:\x1b[38;2;150;150;150m {}: {}",
+                variable.name, variable
+            );
         }
     }
     Ok(())
@@ -74,7 +79,6 @@ impl Block {
         self.variables.push(variable);
     }
 }
-
 
 pub struct Config {
     pub bit_width: u32,
@@ -120,10 +124,22 @@ impl Variable {
 
 impl std::fmt::Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "raw: {} -> meaning: {}", self.value.iter().map(|b| format!("0x{:02X} ", b)).collect::<Vec<_>>().join(""), match self.vartype {
-            VariableType::Int => self.to_u32().map(|n| format!("{}", n)).unwrap_or_else(|| "invalid int".to_string()),
-            VariableType::Str => String::from_utf8_lossy(&self.value).to_string(),
-        })
+        write!(
+            f,
+            "raw: \x1b[38;2;50;255;150m{}\x1b[0m -> meaning: \x1b[38;2;50;150;150m{}\x1b[0m",
+            self.value
+                .iter()
+                .map(|b| format!("0x{:02X} ", b))
+                .collect::<Vec<_>>()
+                .join(""),
+            match self.vartype {
+                VariableType::Int => self
+                    .to_u32()
+                    .map(|n| format!("{}", n))
+                    .unwrap_or_else(|| "invalid int".to_string()),
+                VariableType::Str => String::from_utf8_lossy(&self.value).to_string(),
+            }
+        )
     }
 }
 
