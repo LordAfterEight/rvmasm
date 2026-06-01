@@ -9,7 +9,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::env::args().nth(1).expect("No input file provided");
     let source = std::fs::read_to_string(path).expect("Failed to read input file");
 
-    _ = parser::blockify(source);
+    let blocks = parser::blockify(source).unwrap();
+    for block in blocks {
+        println!("Block: {} at 0x{:08X}", block.name, block.base.unwrap());
+        for line in block.content {
+            println!("    {:?}", line);
+        }
+    }
 
     Ok(())
 }

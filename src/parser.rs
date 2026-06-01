@@ -11,14 +11,19 @@ pub fn blockify(source: String) -> Result<Vec<Block>, Box<dyn std::error::Error>
 
     while i < lines.len() {
         let line = &lines[i];
-        if line[0] == "BLCK" {
+        if line[0] == "@BLCK" {
             let mut block = Block::new();
             block.name = line[1].clone();
             block.base = Some(parse_single_value(&line[2])?);
             i += 1;
+            while i < lines.len() && lines[i][0] != "}" {                                                                                                                                                     
+                block.content.push(lines[i].clone());
+                i += 1;                                                                                                                                                                                       
+            }   
+            blocks.push(block);
         }
+        i += 1;
     }
-
     Ok(blocks)
 }
 
