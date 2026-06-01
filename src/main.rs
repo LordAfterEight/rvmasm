@@ -9,5 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::env::args().nth(1).expect("No input file provided");
     let source = std::fs::read_to_string(path).expect("Failed to read input file");
 
+    _ = parser::blockify(source);
+
     Ok(())
 }
